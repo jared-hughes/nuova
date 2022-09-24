@@ -18,8 +18,9 @@
 
 typedef uint32_t u32;
 
+/** mem = main memory, s = length(mem) */
 u32 *mem, s;
-uint16_t t[16640], ai;
+/** gw: ensure mem is at least length a+1, filling in mem */
 void gw(u32 a) {
   if (__builtin_expect(a >= s, 0)) {
     u32 i = s;
@@ -31,14 +32,19 @@ void gw(u32 a) {
     }
   }
 }
+/** mem get: get mem[a], ensuring length at least a+1 */
 u32 mg(u32 a) {
   gw(a);
   return mem[a];
 }
+/** mem set: set mem[a] <- v, ensuring length at least a+1 */
 void ms(u32 a, u32 v) {
   gw(a);
   mem[a] = v;
 }
+/** t = secondary memory,
+ * ai = address into this memory (always increases but overflow) */
+uint16_t t[16640], ai;
 int sse(int p, int c, int b) {
   int g = (b << 16) + (b << 6) - b - b;
   t[ai] += (g - t[ai]) >> 6;
@@ -64,31 +70,33 @@ int main(int argc, char *argv[]) {
     ms(idx, mg(idx) ^ instr);
     idx++;
     if ((instr & 15) == 15) {
+      // printable: "/?O_o"
       u32 value = 0;
+      // consume four MORE bytes to get a full 32-bit value to fill the next idx
       for (int i = 0; i < 4; i++)
         value = (value << 8) | fgetc(in);
       ms(idx, mg(idx) ^ value);
       idx++;
     }
   }
+  for (int j = 0; j < s; j++) {
+    printf("%08x ", mem[j]);
+  }
+  printf("\n");
   fclose(in);
+  // set the last word with complicated formula
   for (u32 i = 1; i < idx; i++)
     ms(idx, mg(idx) ^ sse(mg(i - 1) & 255, mg(i) & 255, pc(mg(i)) & 1));
+  // the action begins
+  // a,b,c registers; a is special
   u32 a = 0x66, b = 0xF0, c = 0x0F, ip = 0;
+
   for (;;) {
     switch (mg(ip++)) {
-    case 0x0F:
-      a = mg(ip++);
-      break;
-    case 0x1F:
-      b = mg(ip++);
-      break;
-    case 0x2F:
-      c = mg(ip++);
-      break;
-    case 0x3F:
-      ip = mg(ip++);
-      break;
+    case 0x0F: a = mg(ip++); break;
+    case 0x1F: b = mg(ip++); break;
+    case 0x2F: c = mg(ip++); break;
+    case 0x3F: ip = mg(ip++); break;
     case 0x4F:
       if (a <= b)
         ip = mg(ip++);
@@ -97,56 +105,23 @@ int main(int argc, char *argv[]) {
       if (b >= c)
         ip = mg(ip++);
       break;
-    case 0x6F:
-      a = sse(b & 0xFF, c & 0xFF, pc(mg(ip++)) & 1);
-      break;
-    case 0x00:
-      ms(ip++, a);
-      break;
-    case 0x10:
-      ms(ip++, b);
-      break;
-    case 0x20:
-      ms(ip++, c);
-      break;
-    case 0x30:
-      ms(a, b);
-      break;
-    case 0x40:
-      ms(a, c);
-      break;
-    case 0x50:
-      ms(a, mg(a));
-      break;
-    case 0x60:
-      b = a;
-      break;
-    case 0x70:
-      c = a;
-      break;
-    case 0x80:
-      a = b;
-      break;
-    case 0x90:
-      a = c;
-      break;
-    case 0xA0:
-      ip = a;
-      break;
-    case 0xB0:
-      a = b + c;
-      break;
-    case 0xC0:
-      a = b - c;
-      break;
-    case 0xD0:
-      putchar(a);
-      break;
-    case 0xE0:
-      a = getchar();
-      break;
-    case 0xF0:
-      return 0;
+    case 0x6F: a = sse(b & 0xFF, c & 0xFF, pc(mg(ip++)) & 1); break;
+    case 0x00: ms(ip++, a); break;
+    case 0x10: ms(ip++, b); break;
+    case 0x20: ms(ip++, c); break;
+    case 0x30: ms(a, b); break;
+    case 0x40: ms(a, c); break;
+    case 0x50: ms(a, mg(a)); break;
+    case 0x60: b = a; break;
+    case 0x70: c = a; break;
+    case 0x80: a = b; break;
+    case 0x90: a = c; break;
+    case 0xA0: ip = a; break;
+    case 0xB0: a = b + c; break;
+    case 0xC0: a = b - c; break;
+    case 0xD0: putchar(a); break;
+    case 0xE0: a = getchar(); break;
+    case 0xF0: return 0;
     default:
       P(a, a);
       P(b, b);
