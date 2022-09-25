@@ -59,6 +59,34 @@ u32 pc(u32 x) {
   x = (x + (x >> 4)) & 0x0f0f0f0f;
   return (x * 0x01010101) >> 24;
 }
+char *mnemonic(int v) {
+  switch (v) {
+  case 0x0F: return "a = mg(ip++)";
+  case 0x1F: return "b = mg(ip++)";
+  case 0x2F: return "c = mg(ip++)";
+  case 0x3F: return "ip = mg(ip++)";
+  case 0x4F: return "if (a <= b) ip = mg(ip++)";
+  case 0x5F: return "if (b >= c) ip = mg(ip++)";
+  case 0x6F: return "a = sse(b & 0xFF, c & 0xFF, pc(mg(ip++)) & 1)";
+  case 0x00: return "ms(ip++, a)";
+  case 0x10: return "ms(ip++, b)";
+  case 0x20: return "ms(ip++, c)";
+  case 0x30: return "ms(a, b)";
+  case 0x40: return "ms(a, c)";
+  case 0x50: return "ms(a, mg(a))";
+  case 0x60: return "b = a";
+  case 0x70: return "c = a";
+  case 0x80: return "a = b";
+  case 0x90: return "a = c";
+  case 0xA0: return "ip = a";
+  case 0xB0: return "a = b + c";
+  case 0xC0: return "a = b - c";
+  case 0xD0: return "putchar(a)";
+  case 0xE0: return "a = getchar()";
+  case 0xF0: return "exit(0)";
+  default: return "P(a,a);P(b,b);P(c,c)";
+  }
+}
 int main(int argc, char *argv[]) {
   for (int i = 0; i < 256; i++)
     for (int j = 0; j < 65; j++)
@@ -79,8 +107,14 @@ int main(int argc, char *argv[]) {
       idx++;
     }
   }
+  mem[0] = 0x0F;
+  mem[1] = 0x48;
+  mem[2] = 0xD0;
+  mem[3] = 0x0F;
+  mem[4] = 0x69;
+  mem[5] = 0xD0;
   for (int j = 0; j < s; j++) {
-    printf("%08x ", mem[j]);
+    printf("%04X: %08X\n", j, mem[j]);
   }
   printf("\n");
   fclose(in);
@@ -91,8 +125,11 @@ int main(int argc, char *argv[]) {
   // a,b,c registers; a is special
   u32 a = 0x66, b = 0xF0, c = 0x0F, ip = 0;
 
-  for (;;) {
-    switch (mg(ip++)) {
+  for (u32 i = 6; i--;) {
+    printf("%04X: ", ip);
+    u32 v = mg(ip++);
+    (v >> 8) ? printf("0x%08X\n", v) : printf("0x%02X: %s\n", v, mnemonic(v));
+    switch (v) {
     case 0x0F: a = mg(ip++); break;
     case 0x1F: b = mg(ip++); break;
     case 0x2F: c = mg(ip++); break;
@@ -119,7 +156,10 @@ int main(int argc, char *argv[]) {
     case 0xA0: ip = a; break;
     case 0xB0: a = b + c; break;
     case 0xC0: a = b - c; break;
-    case 0xD0: putchar(a); break;
+    case 0xD0:
+      putchar(a);
+      printf(" 0x%02X\n", a);
+      break;
     case 0xE0: a = getchar(); break;
     case 0xF0: return 0;
     default:
