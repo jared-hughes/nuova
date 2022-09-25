@@ -1,8 +1,9 @@
-
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 
+// put a hash of a into b
+// hash may be from https://github.com/skeeto/hash-prospector
 #define P(a, b)                                                                \
   {                                                                            \
     u32 x = a;                                                                 \
@@ -26,6 +27,8 @@ void gw(u32 a) {
     u32 i = s;
     s = a + 1;
     mem = realloc(mem, s * sizeof(u32));
+    if (a > 0x10000)
+      exit(1);
     while (i < s) {
       P(i, mem[i]);
       i++;
@@ -98,7 +101,6 @@ int main(int argc, char *argv[]) {
     ms(idx, mg(idx) ^ instr);
     idx++;
     if ((instr & 15) == 15) {
-      // printable: "/?O_o"
       u32 value = 0;
       // consume four MORE bytes to get a full 32-bit value to fill the next idx
       for (int i = 0; i < 4; i++)
@@ -107,12 +109,6 @@ int main(int argc, char *argv[]) {
       idx++;
     }
   }
-  mem[0] = 0x0F;
-  mem[1] = 0x48;
-  mem[2] = 0xD0;
-  mem[3] = 0x0F;
-  mem[4] = 0x69;
-  mem[5] = 0xD0;
   for (int j = 0; j < s; j++) {
     printf("%04X: %08X\n", j, mem[j]);
   }
@@ -128,7 +124,10 @@ int main(int argc, char *argv[]) {
   for (u32 i = 6; i--;) {
     printf("%04X: ", ip);
     u32 v = mg(ip++);
-    (v >> 8) ? printf("0x%08X\n", v) : printf("0x%02X: %s\n", v, mnemonic(v));
+    printf("ip=%04X; mg(ip)=%08X; ", ip, mg(ip));
+    printf("a=%08X; b=%08X; c=%08X; ", a, b, c);
+    printf((v >> 8) ? "0x%08X: " : "0x%02X: ", v);
+    puts(mnemonic(v));
     switch (v) {
     case 0x0F: a = mg(ip++); break;
     case 0x1F: b = mg(ip++); break;
