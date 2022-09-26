@@ -46,6 +46,7 @@ def const_output(string: bytes):
       s = Solver()
       s.add(P_z3(X ^ u(P(idx + 2))) & u(0xFF) == u(c))
       s.add(X >> 8 == 0)
+      s.add(X & 15 != 15)
       if s.check().r == Z3_L_TRUE:
         # print(f"// putchar({c}) // => {repr(chr(c))}")
         put1(0xFF)
@@ -63,19 +64,21 @@ def exit():
 
 def put1(x):
   global prog, idx
+  # print(hex(idx), "put1", f"{x:02x}")
   prog.write(bytes([x]))
   idx += 1
 
 def put4(x):
-  global prog, idx
+  global prog, idx, clr
+  # print(hex(idx), "put4", f"{x:08x}")
   prog.write(bytes([x >> 24, x >> 16 & 0xFF, x >> 8 & 0xFF, x & 0xFF]))
   idx += 1
 
 try:
   prog = open("prog", "wb")
   idx = 0
-  const_output(b"Hi")
-  # const_output(b"Hello, World!\n")
+  # const_output(b"Hi")
+  const_output(b"Hello, World!\n")
   exit()
 finally:
   prog.close()

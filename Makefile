@@ -1,7 +1,3 @@
-pipe: nuova solver
-	./solver
-	./nuova prog
-
 run-raw-nuova: raw-nuova
 	./raw-nuova prog
 
