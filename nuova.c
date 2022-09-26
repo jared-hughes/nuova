@@ -100,6 +100,7 @@ int main(int argc, char *argv[]) {
   while (!feof(in)) {
     uint8_t instr = fgetc(in);
     ms(idx, mg(idx) ^ instr);
+    printf("%04X: %08X from %02X\n", idx, mem[idx], instr);
     idx++;
     if ((instr & 15) == 15) {
       u32 value = 0;
@@ -107,11 +108,9 @@ int main(int argc, char *argv[]) {
       for (int i = 0; i < 4; i++)
         value = (value << 8) | fgetc(in);
       ms(idx, mg(idx) ^ value);
+      printf("%04X: %08X from %08X\n", idx, mem[idx], value);
       idx++;
     }
-  }
-  for (int j = 0; j < s; j++) {
-    printf("%04X: %08X\n", j, mem[j]);
   }
   printf("\n");
   fclose(in);
@@ -122,7 +121,7 @@ int main(int argc, char *argv[]) {
   // a,b,c registers; a is special
   u32 a = 0x66, b = 0xF0, c = 0x0F, ip = 0;
 
-  for (u32 i = 999; i--;) {
+  for (u32 i = 9; i--;) {
     printf("%04X: ", ip);
     u32 v = mg(ip++);
     printf("ip=%04X; mg(ip)=%08X; ", ip, mg(ip));
