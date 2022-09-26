@@ -122,7 +122,7 @@ int main(int argc, char *argv[]) {
   // a,b,c registers; a is special
   u32 a = 0x66, b = 0xF0, c = 0x0F, ip = 0;
 
-  for (u32 i = 9; i--;) {
+  for (u32 i = 999; i--;) {
     printf("%04X: ", ip);
     u32 v = mg(ip++);
     printf("ip=%04X; mg(ip)=%08X; ", ip, mg(ip));

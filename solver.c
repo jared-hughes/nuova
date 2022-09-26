@@ -63,6 +63,117 @@ void hi() {
   put1(0xa0);          // 1 byte control
   put1(0xFF);          // PPP
   put4(0xD0 ^ P(idx)); // putchar(a)
+
+  // exit(0)
+  put1(0xFF);
+  put4(0xF0 ^ P(idx));
+}
+
+void hello_world() {
+  put1(0x00);
+
+  // putchar(72) // => 'H'
+  put1(0xFF);
+  put4(0x0F ^ P(2));
+  put1(16);
+  put1(0xFF);
+  put4(0xD0 ^ P(5));
+
+  // putchar(101) // => 'e'
+  put1(0xFF);
+  put4(0x0F ^ P(7));
+  put1(62);
+  put1(0xFF);
+  put4(0xD0 ^ P(10));
+
+  // putchar(108) // => 'l'
+  put1(0xFF);
+  put4(0x0F ^ P(12));
+  put1(72);
+  put1(0xFF);
+  put4(0xD0 ^ P(15));
+
+  // putchar(108) // => 'l'
+  put1(0xFF);
+  put4(0x0F ^ P(17));
+  put1(120);
+  put1(0xFF);
+  put4(0xD0 ^ P(20));
+
+  // putchar(111) // => 'o'
+  put1(0xFF);
+  put4(0x0F ^ P(22));
+  put1(167);
+  put1(0xFF);
+  put4(0xD0 ^ P(25));
+
+  // putchar(44) // => ','
+  put1(0xFF);
+  put4(0x0F ^ P(27));
+  put1(200);
+  put1(0xFF);
+  put4(0xD0 ^ P(30));
+
+  // putchar(32) // => ' '
+  put1(0xFF);
+  put4(0x0F ^ P(32));
+  put1(254);
+  put1(0xFF);
+  put4(0xD0 ^ P(35));
+
+  // putchar(87) // => 'W'
+  put1(0xFF);
+  put4(0x0F ^ P(37));
+  put1(143);
+  put1(0xFF);
+  put4(0xD0 ^ P(40));
+
+  // putchar(111) // => 'o'
+  put1(0xFF);
+  put4(0x0F ^ P(42));
+  put1(189);
+  put1(0xFF);
+  put4(0xD0 ^ P(45));
+  put1(0x00);
+
+  // putchar(114) // => 'r'
+  put1(0xFF);
+  put4(0x0F ^ P(48));
+  put1(141);
+  put1(0xFF);
+  put4(0xD0 ^ P(51));
+
+  // putchar(108) // => 'l'
+  put1(0xFF);
+  put4(0x0F ^ P(53));
+  put1(93);
+  put1(0xFF);
+  put4(0xD0 ^ P(56));
+
+  // putchar(100) // => 'd'
+  put1(0xFF);
+  put4(0x0F ^ P(58));
+  put1(183);
+  put1(0xFF);
+  put4(0xD0 ^ P(61));
+
+  // putchar(33) // => '!'
+  put1(0xFF);
+  put4(0x0F ^ P(63));
+  put1(164);
+  put1(0xFF);
+  put4(0xD0 ^ P(66));
+
+  // putchar(10) // => '\n'
+  put1(0xFF);
+  put4(0x0F ^ P(68));
+  put1(33);
+  put1(0xFF);
+  put4(0xD0 ^ P(71));
+
+  // exit(0)
+  put1(0xFF);
+  put4(0xF0 ^ P(idx));
 }
 
 int main() {
@@ -70,6 +181,6 @@ int main() {
   //   printf("%2x %08x\n", i, P(i));
   // }
   out = fopen("prog", "wb");
-  hi();
+  hello_world();
   fclose(out);
 }
