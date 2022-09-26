@@ -112,11 +112,11 @@ int main(int argc, char *argv[]) {
       idx++;
     }
   }
-  printf("\n");
   fclose(in);
   // set the last word with complicated formula
   for (u32 i = 1; i < idx; i++)
     ms(idx, mg(idx) ^ sse(mg(i - 1) & 255, mg(i) & 255, pc(mg(i)) & 1));
+  printf("%04X: %08X from sse\n\n", idx, mem[idx]);
   // the action begins
   // a,b,c registers; a is special
   u32 a = 0x66, b = 0xF0, c = 0x0F, ip = 0;
