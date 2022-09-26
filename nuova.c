@@ -49,7 +49,8 @@ void ms(u32 a, u32 v) {
  * ai = address into this memory (always increases but overflow) */
 uint16_t t[16640], ai;
 int sse(int p, int c, int b) {
-  int g = (b << 16) + (b << 6) - b - b;
+  // int g = (b << 16) + (b << 6) - b - b;
+  int g = b == 0 ? 0 : 0x1003e;
   t[ai] += (g - t[ai]) >> 6;
   t[ai + 1] += (g - t[ai + 1]) >> 6;
   int w = p & 127;
@@ -121,7 +122,7 @@ int main(int argc, char *argv[]) {
   // a,b,c registers; a is special
   u32 a = 0x66, b = 0xF0, c = 0x0F, ip = 0;
 
-  for (u32 i = 6; i--;) {
+  for (u32 i = 9; i--;) {
     printf("%04X: ", ip);
     u32 v = mg(ip++);
     printf("ip=%04X; mg(ip)=%08X; ", ip, mg(ip));

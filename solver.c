@@ -33,29 +33,36 @@ u32 inverseP(u32 x) {
 
 FILE *out;
 
-void put1(u32 x) { fputc(x, out); }
+u32 idx = 0;
+
+void put1(u32 x) {
+  fputc(x, out);
+  idx++;
+}
 
 void put4(u32 x) {
   fputc(x >> 24, out);
   fputc(x >> 16, out);
   fputc(x >> 8, out);
   fputc(x, out);
+  idx++;
 }
 
 void hi() {
-  u32 goal[] = {
-      0x0F,           // a =
-      inverseP(0x48), // inverseP('H')
-      0xFF,           // a = P(a)
-      0xD0,           // putchar(a)
-  };
-  put1(0x3F);
-  put4(0x03 ^ P(1));
-  put1(0xFF);
-  put4(0x0F ^ P(0x03));
-  put4(inverseP(0x48) ^ P(0x04));
-  put1(0xFF);
-  put4(0xD0 ^ P(0x06));
+  // H
+  put1(0x00);
+  put1(0XFF);          // PPP
+  put4(0x0F ^ P(idx)); // a =
+  put1(0x10);          // 1 byte control
+  put1(0xFF);          // PPP
+  put4(0xD0 ^ P(idx)); // putchar(a)
+  // i
+  put1(0X00);
+  put1(0XFF);          // PPP
+  put4(0x0F ^ P(idx)); // a =
+  put1(0xa0);          // 1 byte control
+  put1(0xFF);          // PPP
+  put4(0xD0 ^ P(idx)); // putchar(a)
 }
 
 int main() {
