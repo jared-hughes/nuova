@@ -49,19 +49,26 @@ void gw(u32 a) {
     mem = realloc(mem, s * sizeof(u32));
     input = realloc(input, s * sizeof(u32));
     filled = realloc(input, s * sizeof(u32));
+    for (; i < s; i++) {
+      mem[i] = 0;
+      input[i] = 0;
+      filled[i] = 0;
+    }
   }
 }
 /** mem set: set mem[idx] <- v at initial load, ensuring length at least idx+1*/
 void ms_simple(u32 idx, u32 v) {
   gw(idx);
-  if (filled[idx])
-    SADGE("Already filled");
+  if (filled[idx]) {
+    printf("Already filled, at %08x\n", idx);
+    exit(1);
+  }
   u32 xor = v ^ P(idx);
   if (xor >> 8) {
     if (idx == 0) {
       SADGE("Can't 4-byter at beginning")
     } else if (filled[idx - 1]) {
-      if (input[idx - 1] & 0xF != 0xF)
+      if ((input[idx - 1] & 0xF) != 0xF)
         SADGE("Not F, can't fill x4")
     } else {
       filled[idx - 1] = 1;
@@ -102,8 +109,10 @@ void padding(u32 start, u32 end) {
 }
 
 void emit_from_mem() {
+  printf("Emitting!\n");
   FILE *out = fopen("prog", "wb");
   u32 prev_f = 0;
+  u32 bytes = 0;
   for (u32 i = 0; i < s; i++) {
     u32 x = filled[i] ? input[i] : padding_char(i);
     if (prev_f) {
@@ -112,13 +121,16 @@ void emit_from_mem() {
       fputc(x >> 16, out);
       fputc(x >> 8, out);
       fputc(x, out);
+      bytes += 4;
     } else {
       fputc(x, out);
+      bytes++;
       if ((x & 0xF) == 0xF)
         prev_f = 1;
     }
   }
   fclose(out);
+  printf("Bytes: %d\n", bytes);
 }
 
 /**
@@ -128,10 +140,19 @@ void emit_from_mem() {
  * TODO: ensure no xF in XORed
  **/
 u32 try_set_force_a_value(u32 idx, u32 value) {
+  printf("Trying %08X\n", idx);
   for (u32 A = 0; A < 256; A++) {
+    if ((A & 0xF) == 0xF)
+      continue;
     for (u32 B = 0; B < 256; B++) {
+      if ((B & 0xF) == 0xF)
+        continue;
       for (u32 C = 0; C < 256; C++) {
+        if ((C & 0xF) == 0xF)
+          continue;
         for (u32 D = 0; D < 256; D++) {
+          if ((D & 0xF) == 0xF)
+            continue;
           u32 a, b, c, d;
           b = A ^ P(idx + 2);
           b = P(b);
@@ -152,6 +173,7 @@ u32 try_set_force_a_value(u32 idx, u32 value) {
           a = b + c;
 
           if (a == inverseP(value)) {
+            printf("Succeeded at %08X\n", idx);
             ms_simple(idx + 1, 0x1F);             // b =
             ms_simple(idx + 2, A ^ P(idx + 2));   // A ^ P(idx + 2);
             ms_simple(idx + 4, 0x2F);             // P(); c =
@@ -186,6 +208,7 @@ void force_a_value(u32 idx, u32 value) {
       SADGE("Already filled in, at force_a_value")
   }
   for (;; idx--) {
+    printf("Trying idx %04x\n", idx);
     u32 successful = try_set_force_a_value(idx - 21, value);
     if (successful)
       return;
@@ -376,12 +399,13 @@ void initMemset(u32 setIdx, u32 setValue) {
 void pushExit() { ms_simple(s + 1, 0xF0); }
 
 void cat_nonterminating() {
-  u32 a = 0x10000;
-  initMemset(a, 0xE0);    // a: getchar
-  ms_simple(a + 1, 0xD0); // a + 1: putchar
-  force_a_value(a + 40, inverseP(inverseP(a - 1)));
-  ms_simple(a + 44, 0xA0);
-  pushExit();
+  u32 p = 0x4a00;
+  initMemset(p, 0xE0);                              // p: getchar
+  ms_simple(p + 1, 0xD0);                           // p + 1: putchar
+  force_a_value(p + 30, inverseP(inverseP(p - 1))); // p+40: a = inverseP(p-1)
+  printf("Done with force\n");                      // e
+  ms_simple(p + 34, 0xA0);                          // p+44: a = p-1; ip = a;
+  // pushExit();
   emit_from_mem();
 }
 
