@@ -400,12 +400,23 @@ void pushExit() { ms_simple(s + 1, 0xF0); }
 
 void cat_nonterminating() {
   u32 p = 0x4a00;
-  initMemset(p, 0xE0);                              // p: getchar
-  ms_simple(p + 1, 0xD0);                           // p + 1: putchar
-  force_a_value(p + 30, inverseP(inverseP(p - 1))); // p+40: a = inverseP(p-1)
-  printf("Done with force\n");                      // e
-  ms_simple(p + 34, 0xA0);                          // p+44: a = p-1; ip = a;
-  // pushExit();
+  initMemset(p, 0xE0);          // p: getchar
+  ms_simple(p + 1, 0xD0);       // p + 1: putchar
+  force_a_value(p + 30, p - 1); // p+30: a = p-1
+  ms_simple(p + 32, 0xA0);      // p+34: a = p-1; ip = a;
+  emit_from_mem();
+}
+
+void cat_terminating() {
+  u32 p = 0x4a00;
+  ms_simple(p, 0x1F);           // b = P(p+1)^0xFF;
+  ms_simple(p + 2, 0xE0);       // a = getchar();
+  initMemset(p + 3, 0x4F);      // if (a = b) ip =
+  ms_simple(p + 4, p + 8);      // p + 8;
+  ms_simple(p + 6, 0xF0);       // exit(0)
+  ms_simple(p + 8, 0xD0);       // putchar(a)
+  force_a_value(p + 40, p - 1); // p+40: a = p-1
+  ms_simple(p + 42, 0xA0);      // p+42: a = p-1; ip = a;
   emit_from_mem();
 }
 
