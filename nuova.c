@@ -100,7 +100,7 @@ int main(int argc, char *argv[]) {
   while (!feof(in)) {
     uint8_t instr = fgetc(in);
     ms(idx, mg(idx) ^ instr);
-    printf("%04X: %08X from %02X\n", idx, mem[idx], instr);
+    fprintf(stderr, "%04X: %08X from %02X\n", idx, mem[idx], instr);
     idx++;
     if ((instr & 15) == 15) {
       u32 value = 0;
@@ -108,7 +108,7 @@ int main(int argc, char *argv[]) {
       for (int i = 0; i < 4; i++)
         value = (value << 8) | fgetc(in);
       ms(idx, mg(idx) ^ value);
-      printf("%04X: %08X from %08X\n", idx, mem[idx], value);
+      fprintf(stderr, "%04X: %08X from %08X\n", idx, mem[idx], value);
       idx++;
     }
   }
@@ -116,18 +116,21 @@ int main(int argc, char *argv[]) {
   // set the last word with complicated formula
   for (u32 i = 1; i < idx; i++)
     ms(idx, mg(idx) ^ sse(mg(i - 1) & 255, mg(i) & 255, pc(mg(i)) & 1));
-  printf("%04X: %08X from sse\n\n", idx, mem[idx]);
+  fprintf(stderr, "%04X: %08X from sse\n\n", idx, mem[idx]);
   // the action begins
   // a,b,c registers; a is special
   u32 a = 0x66, b = 0xF0, c = 0x0F, ip = 0;
 
-  for (u32 i = 0xA150; i--;) {
-    printf("%04X: ", ip);
+  for (u32 i = 0xFFFFF; i--;) {
     u32 v = mg(ip++);
-    printf("ip=%04X; mg(ip)=%08X; ", ip, mg(ip));
-    printf("a=%08X; b=%08X; c=%08X; ", a, b, c);
-    printf((v >> 8) ? "0x%08X: " : "0x%02X: ", v);
-    puts(mnemonic(v));
+    char *mn = mnemonic(v);
+    if (*mn != 'P') {
+      fprintf(stderr, "%04X: ", ip - 1);
+      fprintf(stderr, "ip=%04X; mg(ip)=%08X; ", ip, mg(ip));
+      fprintf(stderr, "a=%08X; b=%08X; c=%08X; ", a, b, c);
+      fprintf(stderr, (v >> 8) ? "0x%08X: " : "0x%02X: ", v);
+      fprintf(stderr, "%s\n", mnemonic(v));
+    }
     switch (v) {
     case 0x0F: a = mg(ip++); break;
     case 0x1F: b = mg(ip++); break;
@@ -157,9 +160,13 @@ int main(int argc, char *argv[]) {
     case 0xC0: a = b - c; break;
     case 0xD0:
       putchar(a);
-      printf(" 0x%02X\n", a);
+      fflush(stdout);
+      fprintf(stderr, "out %c 0x%02X\n", a, a);
       break;
-    case 0xE0: a = getchar(); break;
+    case 0xE0:
+      a = getchar();
+      fprintf(stderr, "got %c\n", a);
+      break;
     case 0xF0: return 0;
     default:
       P(a, a);

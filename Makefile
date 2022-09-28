@@ -5,10 +5,10 @@ raw-nuova:
 	gcc raw-nuova.c -O3 -o raw-nuova
 
 run-nuova: nuova
-	./nuova prog
+	./nuova prog 2> nuova.log
 
 nuova: nuova.c
-	gcc nuova.c -O3 -o nuova
+	gcc nuova.c -g -o nuova
 
 run-test: test
 	./test

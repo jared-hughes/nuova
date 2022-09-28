@@ -375,8 +375,14 @@ void initMemset(u32 setIdx, u32 setValue) {
 
 void pushExit() { ms_simple(s + 1, 0xF0); }
 
-int main() {
-  initMemset(0x10000, 0x69);
+void cat_nonterminating() {
+  u32 a = 0x10000;
+  initMemset(a, 0xE0);    // a: getchar
+  ms_simple(a + 1, 0xD0); // a + 1: putchar
+  force_a_value(a + 40, inverseP(inverseP(a - 1)));
+  ms_simple(a + 44, 0xA0);
   pushExit();
   emit_from_mem();
 }
+
+int main() { cat_nonterminating(); }
