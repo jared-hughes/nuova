@@ -27,7 +27,7 @@ void gw(u32 a) {
     u32 i = s;
     s = a + 1;
     mem = realloc(mem, s * sizeof(u32));
-    if (a > 0x10000)
+    if (a > 0x100000)
       exit(1);
     while (i < s) {
       P(i, mem[i]);
@@ -121,7 +121,7 @@ int main(int argc, char *argv[]) {
   // a,b,c registers; a is special
   u32 a = 0x66, b = 0xF0, c = 0x0F, ip = 0;
 
-  for (u32 i = 9; i--;) {
+  for (u32 i = 0xA150; i--;) {
     printf("%04X: ", ip);
     u32 v = mg(ip++);
     printf("ip=%04X; mg(ip)=%08X; ", ip, mg(ip));

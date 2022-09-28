@@ -259,7 +259,7 @@ def set_a(value):
             put4(0x60 ^ P(idx))  # b = a
             put1(0xFF)  # P()
             put4(0x2F ^ P(idx))  # c =
-            put1(m.eval(D).as_long())  # 0xef ^ P(i + 18)
+            put1(m.eval(D).as_long())  # 0xef ^ P(i + 19)
             put1(0xFF)  # P()
             put4(0xB0 ^ P(idx))  # a = b + c
             break

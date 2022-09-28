@@ -31,48 +31,166 @@ u32 inverseP(u32 x) {
   return x;
 }
 
+#define SADGE(s)                                                               \
+  {                                                                            \
+    printf(s "\n");                                                            \
+    exit(1);                                                                   \
+  }
+
+/** input = input as bytes, mem = main memory, s = length(mem) */
+u32 *filled, *input, *mem, s;
+/** gw: ensure mem is at least length a+1, filling in mem with 0s */
+void gw(u32 a) {
+  if (__builtin_expect(a >= s, 0)) {
+    u32 i = s;
+    s = a + 1;
+    if (a > 0x100000)
+      SADGE("Too Long");
+    mem = realloc(mem, s * sizeof(u32));
+    input = realloc(input, s * sizeof(u32));
+    filled = realloc(input, s * sizeof(u32));
+  }
+}
+/** mem set: set mem[idx] <- v at initial load, ensuring length at least idx+1*/
+void ms_simple(u32 idx, u32 v) {
+  gw(idx);
+  if (filled[idx])
+    SADGE("Already filled");
+  u32 xor = v ^ P(idx);
+  if (xor >> 8) {
+    if (idx == 0) {
+      SADGE("Can't 4-byter at beginning")
+    } else if (filled[idx - 1]) {
+      if (input[idx - 1] & 0xF != 0xF)
+        SADGE("Not F, can't fill x4")
+    } else {
+      filled[idx - 1] = 1;
+      u32 p = P(idx - 1);
+      if (p >> 8 == 0)
+        SADGE("Collision possible")
+      filled[idx - 1] = 1;
+      mem[idx - 1] = p ^ 0x0F;
+      input[idx - 1] = 0xFF;
+    }
+  }
+  filled[idx] = 1;
+  mem[idx] = v;
+  input[idx] = xor;
+}
+
+u32 padding_char(u32 idx) {
+  for (u32 c = 0; c < 256; c++) {
+    if ((c & 0xF) == 0xF)
+      continue;
+    u32 res = P(idx) ^ c;
+    if (!(res >> 8 == 0 && ((res & 0xF) == 0xF || (res & 0xF) == 0))) {
+      return c;
+    }
+  }
+}
+
 /**
- * Set the value of `a` to `value` at idx + 20ish (TODO shift).
- * Tramples over b and c but only takes about 20 mem
+ * Fills in [start, ..., end] with all padding: PPP every time, exactly
+ * end - start + 1 PPPs (no instr )
+ * Start and end are inclusive
+ */
+void padding(u32 start, u32 end) {
+  for (u32 j = start; j <= end; j++) {
+    // TODO: avoid accidental instruction
+    ms_simple(j, P(j) ^ padding_char(j)); // bunch of PPP;
+  }
+}
+
+void emit_from_mem() {
+  FILE *out = fopen("prog", "wb");
+  u32 prev_f = 0;
+  for (u32 i = 0; i < s; i++) {
+    u32 x = filled[i] ? input[i] : padding_char(i);
+    if (prev_f) {
+      prev_f = 0;
+      fputc(x >> 24, out);
+      fputc(x >> 16, out);
+      fputc(x >> 8, out);
+      fputc(x, out);
+    } else {
+      fputc(x, out);
+      if ((x & 0xF) == 0xF)
+        prev_f = 1;
+    }
+  }
+  fclose(out);
+}
+
+/**
+ * Set the value of `a` to `value` at idx + 21.
+ * Requires writing spawn mem from idx to idx + 21 inclusive
+ * Tramples over b and c but small
+ * TODO: ensure no xF in XORed
  **/
-int force_a_value(u32 idx, u32 value) {
+u32 try_set_force_a_value(u32 idx, u32 value) {
   for (u32 A = 0; A < 256; A++) {
-    printf("A = %02X\n", A);
     for (u32 B = 0; B < 256; B++) {
       for (u32 C = 0; C < 256; C++) {
         for (u32 D = 0; D < 256; D++) {
           u32 a, b, c, d;
-          b = P(P(A ^ P(idx + 2)));
-          c = P(B ^ P(idx + 5));
-
-          b = P(P(b + c));
+          b = A ^ P(idx + 2);
+          b = P(b);
+          c = B ^ P(idx + 5);
+          b = P(b), c = P(c);
+          a = b + c;
+          a = P(a), b = P(b), c = P(c);
+          b = a;
+          a = P(a), b = P(b), c = P(c);
           c = C ^ P(idx + 12);
-
-          b = P(P(b) + P(c));
-          c = D ^ P(idx + 18);
-          a = P(b) + P(c);
+          a = P(a), b = P(b), c = P(c);
+          a = b + c;
+          a = P(a), b = P(b), c = P(c);
+          b = a;
+          a = P(a), b = P(b), c = P(c);
+          c = D ^ P(idx + 19);
+          a = P(a), b = P(b), c = P(c);
+          a = b + c;
 
           if (a == inverseP(value)) {
-            printf("%04X: %02X %02X %02X %02X => %08X\n", idx, A, B, C, D, a);
+            ms_simple(idx + 1, 0x1F);             // b =
+            ms_simple(idx + 2, A ^ P(idx + 2));   // A ^ P(idx + 2);
+            ms_simple(idx + 4, 0x2F);             // P(); c =
+            ms_simple(idx + 5, B ^ P(idx + 5));   // B ^ P(idx + 5);
+            ms_simple(idx + 7, 0xB0);             // P(); a = b + c;
+            ms_simple(idx + 9, 0x60);             // P(); b = a;
+            ms_simple(idx + 11, 0x2F);            // P(); c =
+            ms_simple(idx + 12, C ^ P(idx + 12)); // C ^ P(idx + 12);
+            ms_simple(idx + 14, 0xB0);            // P(); a = b + c;
+            ms_simple(idx + 16, 0x60);            // P(); b = a;
+            ms_simple(idx + 18, 0x2F);            // P(); c =
+            ms_simple(idx + 19, D ^ P(idx + 19)); // D ^ P(idx + 19);
+            ms_simple(idx + 21, 0xB0);            // P(); a = b + c = value
+            return 1;
           }
         }
       }
     }
   }
+  return 0;
 }
 
-u32 find_cycle_length(u32 x) {
-  u32 startX = x;
-  u32 i = 1;
-  x = P(x);
-  while (startX != x) {
-    if (x >> 8 == 0)
-      printf("0x%02X = P^{0x%08X}(0x%02X)\n", x, i, startX);
-    i += 1;
-    x = P(x);
+/**
+ * idx: a = value
+ * Requires at least 21 mem before that (so 22 total)
+ * Might need to backtrack some, so leave some space
+ */
+void force_a_value(u32 idx, u32 value) {
+  printf("forcing %04X: a=%08X\n", idx, value);
+  for (u32 i = idx; i >= idx - 21; i--) {
+    if (filled[i])
+      SADGE("Already filled in, at force_a_value")
   }
-  printf("0x%02X = P^{0x%08X}(0x%02X)\n", x, i, startX);
-  return i;
+  for (;; idx--) {
+    u32 successful = try_set_force_a_value(idx - 21, value);
+    if (successful)
+      return;
+    value = inverseP(value);
+  }
 }
 
 #define SETSZ (1 << 18)
@@ -181,6 +299,7 @@ int set_has_value(Set *s, u32 value) {
 
 // end = P^{s}(start) if s = stepsFrom(start, end);
 u32 stepsFrom(u32 start, u32 end) {
+  printf("start=%08X, end=%08X\n", start, end);
   u32 v = start;
   for (u32 i = 0;; i++) {
     if (v == end)
@@ -190,34 +309,74 @@ u32 stepsFrom(u32 start, u32 end) {
       printf("No path from %08X to %08X", start, end);
       exit(1);
     }
-    // if (i % 10000 == 0)
-    //   printf("%d\n", i);
   }
 }
 
+u32 inversePn(u32 end, u32 n) {
+  for (u32 i = 0; i < n; i++) {
+    end = inverseP(end);
+  }
+  return end;
+}
+
 /**
- * Force the value of `b` to be `value` somewhere afterish idx
+ * ms(setIdx, setValue)
  **/
-void force_b_value(u32 idx, u32 value) {
-  Set inverses = inverses_set(value);
+void initMemset(u32 setIdx, u32 setValue) {
+  printf("ms(%08x, %08x);", setIdx, setValue);
+  // End goal:
+  // at idx1: a = inverseP^{i - idx1 + 2 + stepsFrom(b1, setValue)}(setIdx)
+  // at i-1: a = inverseP^{2 + stepsFrom(b1, setValue)}(setIdx)
+  // then some 0x00s
   // i:   0xFF
-  // i+1: 0x1F ^ P(idx) // b =
+  // i+1: 0x1F ^ P(i+1) // b =
   // i+2: B = 0x00 up to 0xFF. Disallow 0x0F mod 0x10 for now.
   //                           Don't want to deal with adding padding
-  // end result: b = b1 = B ^ P(i + 2)
-  // we want b1 in inverses
-  // Then i + 2 + stepsFrom(b1, value) is the first step where b = value
-  for (u32 i = idx;; i++) {
+  // at i + 2: b = b1 = B ^ P(i + 2)
+  // then some 0x00s
+  // at i + 2 + stepsFrom(b1, setValue): b = setValue
+
+  Set inverses = inverses_set(setValue);
+  // start at 25 to give some space for force_a_value
+  for (u32 i = 25;; i++) {
     for (u32 B = 0; B < 256; B++) {
       if (B & 0x0F == 0x0F)
         continue;
       u32 b1 = B ^ P(i + 2);
       if (set_has_value(&inverses, b1)) {
-        printf("Found! %d %02X %d\n", i, B, stepsFrom(b1, value));
+        u32 endpt = i + 3 + stepsFrom(b1, setValue);
+        printf("i = %08X; endpt = %08X\n", i, endpt);
+        // check clean
+        gw(endpt);
+        for (u32 j = i - 22; j <= endpt; j++) {
+          if (filled[j]) {
+            for (i = j; filled[i];) {
+              i++;
+            }
+            printf("nonempty\n");
+            goto no_work;
+          }
+        }
+        printf("forceroo\n");
+        // Why +4??
+        force_a_value(i - 1, inversePn(setIdx, endpt - (i - 1) - 4));
+        // filleroo
+        printf("filleroo\n");
+        ms_simple(i + 1, 0x1F);         // b =
+        ms_simple(i + 2, B ^ P(i + 2)); // B ^ P(i + 2);
+        padding(i + 3, endpt - 2);
+        ms_simple(endpt, 0x30); // ms(a, b)
         return;
       }
+    no_work:
     }
   }
 }
 
-int main() { force_b_value(20, 0x01); }
+void pushExit() { ms_simple(s + 1, 0xF0); }
+
+int main() {
+  initMemset(0x10000, 0x69);
+  pushExit();
+  emit_from_mem();
+}
