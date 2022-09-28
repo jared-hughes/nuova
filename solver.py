@@ -1,7 +1,8 @@
 from z3 import *
 
-# import timeit
-# T = lambda f: print(timeit.timeit(f, number=1))
+import timeit, time
+
+T = lambda f: print(timeit.timeit(f, number=1))
 
 u = lambda x: BitVecVal(x, 32)
 
@@ -113,10 +114,170 @@ def hello_world():
     const_output(b"Hello, World!\n")
 
 
+def full(value):
+    s = Solver()
+    s.add(LShR(A, 8) == 0)
+    s.add(LShR(B, 8) == 0)
+    s.add(LShR(C, 8) == 0)
+    s.add(LShR(D, 8) == 0)
+    b = A ^ P_z3(u(idx + 2))
+    b = P_z3(b)
+    c = B ^ u(P(idx + 5))
+    b = P_z3(b)
+    c = P_z3(c)
+    a = b + c
+    a = P_z3(a)
+    b = P_z3(b)
+    c = P_z3(c)
+
+    b = a
+    a = P_z3(a)
+    b = P_z3(b)
+    c = P_z3(c)
+    c = C ^ u(P(idx + 12))
+    a = P_z3(a)
+    b = P_z3(b)
+    c = P_z3(c)
+    a = b + c
+
+    b = a
+    a = P_z3(a)
+    b = P_z3(b)
+    c = P_z3(c)
+    c = D ^ u(P(idx + 18))
+    a = P_z3(a)
+    b = P_z3(b)
+    c = P_z3(c)
+    a = b + c
+    s.add(a == value)
+
+
+def intermediates(value):
+    s = Solver()
+    s.add(A >> 8 == 0)
+    s.add(B >> 8 == 0)
+    s.add(C >> 8 == 0)
+    s.add(D >> 8 == 0)
+    s.add(
+        B1 == P_z3(P_z3(A ^ u(P(idx + 2)))),
+        C1 == P_z3(B ^ u(P(idx + 5))),
+        B2 == P_z3(B1),
+        A1 == P_z3(B2 + C1),
+        B3 == P_z3(P_z3(A1)),
+        C2 == P_z3(C ^ u(P(idx + 12))),
+        A2 == B3 + C2,
+        B4 == P_z3(P_z3(A2)),
+        C3 == P_z3(D ^ u(P(idx + 18))),
+        A3 == B4 + C3,
+        A3 == value,
+    )
+
+
+def get_solver(value):
+    s = Solver()
+    s.set("local_ctx", True)
+    s.add(LShR(A, 8) == 0)
+    s.add(LShR(B, 8) == 0)
+    # s.add(LShR(C, 8) == 0)
+    # s.add(LShR(D, 8) == 0)
+    # s.add(A == a0, B == b0)
+    b = A ^ P_z3(u(idx + 2))
+    # b = u(0 ^ P(idx + 2)) # slower
+    b = P_z3(b)
+    c = B ^ u(P(idx + 5))
+
+    b = P_z3(b)
+    c = P_z3(c)
+    a = b + c
+    # a = P_z3(a)
+    # b = P_z3(b)
+    # c = P_z3(c)
+
+    # b = a
+    # a = P_z3(a)
+    # b = P_z3(b)
+    # c = P_z3(c)
+    # c = C ^ u(P(idx + 12))
+    # a = P_z3(a)
+    # b = P_z3(b)
+    # c = P_z3(c)
+    # a = b + c
+
+    # b = a
+    # a = P_z3(a)
+    # b = P_z3(b)
+    # c = P_z3(c)
+    # c = D ^ u(P(idx + 18))
+    # a = P_z3(a)
+    # b = P_z3(b)
+    # c = P_z3(c)
+    # a = b + c
+    s.add(a == value)
+    return s
+
+
+def get_model(value):
+    s = get_solver(value)
+    if s.check().r == Z3_L_TRUE:
+        print("sat", s.model())
+        return s.model()
+    print("unsat")
+    return None
+
+
+def set_a(value):
+    while True:
+        print(idx)
+
+        t = time.time()
+        m = get_model(value)
+        print(time.time() - t)
+
+        print("model constructed")
+        if m is not None:
+            print(m)
+            print("True")
+            # i = idx
+            put1(0xFF)
+            put4(0x1F ^ P(idx))  # b =
+            put1(m.eval(A).as_long())  # 0xab ^ P(i + 2)
+            put1(0xFF)  # P()
+            put4(0x2F ^ P(idx))  # c =
+            put1(m.eval(B).as_long())  # 0xcd ^ P(i + 5)
+            put1(0xFF)  # P()
+            put4(0xB0 ^ P(idx))  # a = b + c
+
+            put1(0xFF)  # P()
+            put4(0x60 ^ P(idx))  # b = a
+            put1(0xFF)  # P()
+            put4(0x2F ^ P(idx))  # c =
+            put1(m.eval(C).as_long())  # 0xef ^ P(i + 12)
+            put1(0xFF)  # P()
+            put4(0xB0 ^ P(idx))  # a = b + c
+
+            put1(0xFF)  # P()
+            put4(0x60 ^ P(idx))  # b = a
+            put1(0xFF)  # P()
+            put4(0x2F ^ P(idx))  # c =
+            put1(m.eval(D).as_long())  # 0xef ^ P(i + 18)
+            put1(0xFF)  # P()
+            put4(0xB0 ^ P(idx))  # a = b + c
+            break
+        put1(0x00)
+
+
+# a = sse could be used to go back to 0 or 1
+
+solve(P_z3(P_z3(X)) == X)
+
+import sys
+
+sys.exit(0)
+
 try:
     prog = open("prog", "wb")
     idx = 0
-    hi()
+    T(lambda: set_a(0x30))
     exit()
 finally:
     prog.close()

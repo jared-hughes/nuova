@@ -9,3 +9,9 @@ run-nuova: nuova
 
 nuova: nuova.c
 	gcc nuova.c -o nuova
+
+run-test: test
+	./test
+
+test: test.c
+	gcc test.c -o test
