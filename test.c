@@ -190,9 +190,11 @@ void add_to_mem_cache(TsfavCacheData data) {
 
 void add_to_cache(TsfavCacheData data) {
   add_to_mem_cache(data);
-  if (cacheFile != NULL)
+  if (cacheFile != NULL) {
+    printf("Writing to file\n");
     fwrite(&data, sizeof(TsfavCacheData), 1, cacheFile);
-  else
+    fflush(cacheFile);
+  } else
     printf("Cache file is null, so not appending to disk\n");
 }
 
@@ -210,7 +212,7 @@ void build_cache() {
         else
           SADGE("Cache file reading oopsie")
       }
-      add_to_mem_cache(data);
+      add_to_cache(data);
     }
     fclose(cacheFile);
   }
@@ -222,8 +224,8 @@ void build_cache() {
  * Requires writing spawn mem from idx to idx + 21 inclusive
  * Tramples over b and c but small
  **/
-TsfavCacheData try_set_force_a_value(u32 searchIdx, u32 idx, u32 value) {
-  printf("Trying %08X\n", idx);
+TsfavCacheData try_set_force_a_value(u32 searchIdx, u32 idx, u32 searchValue,
+                                     u32 value) {
   for (u32 A = 0; A < 256; A++) {
     if ((A & 0xF) == 0xF)
       continue;
@@ -254,10 +256,8 @@ TsfavCacheData try_set_force_a_value(u32 searchIdx, u32 idx, u32 value) {
           c = D ^ P(idx + 19);
           a = P(a), b = P(b), c = P(c);
           a = b + c;
-
           if (a == inverseP(value)) {
-            printf("Succeeded at %08X\n", idx);
-            return (TsfavCacheData){searchIdx, idx, value, A, B, C, D};
+            return (TsfavCacheData){searchIdx, idx, searchValue, A, B, C, D};
           }
         }
       }
@@ -291,6 +291,7 @@ void force_a_value_from_struct(TsfavCacheData data) {
  */
 void force_a_value(u32 idx, u32 value) {
   u32 searchIdx = idx;
+  u32 searchValue = value;
   printf("forcing %04X: a=%08X\n", idx, value);
   for (u32 i = idx; i >= idx - 21; i--) {
     if (filled[i])
@@ -301,9 +302,11 @@ void force_a_value(u32 idx, u32 value) {
     force_a_value_from_struct(*data);
     return;
   }
+  printf("cache miss %08X %08X\n", idx, value);
   for (;; idx--) {
     printf("Trying idx %04x\n", idx);
-    TsfavCacheData res = try_set_force_a_value(searchIdx, idx - 21, value);
+    TsfavCacheData res =
+        try_set_force_a_value(searchIdx, idx - 21, searchValue, value);
     if (res.searchIdx > 0) {
       force_a_value_from_struct(res);
       add_to_cache(res);
@@ -524,45 +527,46 @@ void ms_smart(u32 idx, u32 v) {
   return initMemset(idx, v);
 }
 
+FILE *symbolsFile;
+
+void prep_symbols() { symbolsFile = fopen("symbols", "w"); }
+
+void add_symbol(u32 idx, char *name) {
+  fprintf(symbolsFile, "%08X %s\n", idx, name);
+}
+
 void fizzbuzz() {
   //    c = 0
+  // c10:
+  //    c *= 10 [polluting a,b]
   // getc:
   //    b = getchar();
-  //    if (b != EOF) ip = c10;
+  //    if (b != EOF) [polluting a]
+  //      ip = c10;
   //    else PPP
   // print:
   //    c = mg(num_lines)
   //    exit(0) // actual fizzbuzz printing will go here
-  // c10:
-  //    c *= 10
   // cplus:
-  //    c += b - 48
+  //    c += b - 48 [polluting a,b]
   //    ms(num_lines, c)
-  //    ip = getc
+  //    ip = c10
 
   u32 p = 0xF0000;
   u32 num_lines = p - 20;
-  u32 getc = p + 10;
-  u32 print = getc + 16;
-  u32 c10 = print + 10;
-  u32 cplus = c10 + 11;
+  u32 c10 = p + 10;
+  u32 getc = c10 + 11;
+  u32 print = getc + 5;
+  u32 cplus = print + 100;
   // p: c = 0
+  add_symbol(p, "p");
   ms_simple(p, 0x60);     // P(); b = a;
   ms_simple(p + 2, 0x70); // P(); c = a;
   ms_simple(p + 4, 0xC0); // P(); a = b - c
   ms_simple(p + 6, 0x70); // P(); c = a
 
-  // getc: b = getchar(); if (b != EOF) ip = c10; else PPP
-  ms_smart(getc, 0xE0);     // a = getchar();
-  ms_smart(getc + 1, 0x60); // b = a
-  ms_smart(getc + 2, 0x0F); // a = P(cplus + 3) ^ 0xFF
-  // note skip here for the imm of prev
-  ms_smart(getc + 4, 0x4F); // if (a <= b) ip =
-  ms_smart(getc + 5, c10);  // c10
-
-  // print: exit(0)
-
   // c10: c *= 10
+  add_symbol(c10, "c10");
   ms_smart(c10, 0x90);      // a=c
   ms_smart(c10 + 1, 0x60);  // b=a
   ms_smart(c10 + 2, 0xB0);  // a=b+c
@@ -575,26 +579,35 @@ void fizzbuzz() {
   ms_smart(c10 + 9, 0xB0);  // a=b+c
   ms_smart(c10 + 10, 0x70); // c=a
 
-  // cplus: c += a - 48; ms(num_lines, c); ip = c10
-  ms_smart(cplus, 0xE0);          // a = getchar();
-  ms_smart(cplus + 1, 0x60);      // b = a;
-  ms_smart(cplus + 2, 0x0F);      // a =
-  ms_smart(cplus + 3, num_lines); // num_lines;
-  ms_smart(cplus + 4, 0x30);      // ms(a, b)
-  ms_smart(cplus + 5, 0x0F);      // a = P(cplus + 3) ^ 0xFF
-  ms_smart(cplus + 7, 0x4F);      // if (a <= b) ip =
-  ms_smart(cplus + 8, print);     // print
-  ms_smart(cplus + 9, 0x70);      // a = b + c
-  ms_smart(cplus + 10, 0x60);     // b = a;
-  ms_smart(cplus + 11, 0x2F);     // c =
-  ms_smart(cplus + 12, 48);       // 48 = '0';
-  ms_smart(cplus + 13, 0xC0);     // a = b - c;
-  ms_smart(cplus + 14, 0x70);     // c = a;
-  ms_smart(cplus + 15, 0x3F);     // ip =
-  ms_smart(cplus + 16, c10);      // c10
+  // getc: a = getchar(); if (a != EOF) ip = c10; else PPP
+  add_symbol(getc, "getc");
+  ms_smart(getc, 0xE0);     // a = getchar();
+  ms_smart(getc + 1, 0x1F); // b = P(getc + 2) ^ 0xFF
+  // note skip here for the imm of prev
+  ms_smart(getc + 3, 0x4F);  // if (a <= b) ip =
+  ms_smart(getc + 4, cplus); // cplus; else PPP
 
-  // print:
+  // print: exit(0)
+  add_symbol(print, "print");
   ms_smart(print, 0xF0); // exit(0)
+
+  // cplus:
+  // c += a - 48;
+  add_symbol(cplus, "cplus");
+  ms_smart(cplus, 0x60);     // b = a
+  ms_smart(cplus + 1, 0xB0); // a = b + c
+  ms_smart(cplus + 2, 0x60); // b = a;
+  ms_smart(cplus + 3, 0x2F); // c =
+  ms_smart(cplus + 4, 48);   // 48 = '0';
+  ms_smart(cplus + 5, 0xC0); // a = b - c;
+  ms_smart(cplus + 6, 0x70); // c = a;
+  // ms(num_lines, c);
+  ms_smart(cplus + 7, 0x0F);      // a=
+  ms_smart(cplus + 8, num_lines); // num_lines
+  ms_smart(cplus + 9, 0x40);      // ms(a, c)
+  // ip = getc
+  ms_smart(cplus + 10, 0x3F); // ip =
+  ms_smart(cplus + 11, c10);  // c10
 
   // remove later
   pushExit();
@@ -604,5 +617,6 @@ void fizzbuzz() {
 
 int main() {
   build_cache();
-  cat_terminating();
+  prep_symbols();
+  fizzbuzz();
 }

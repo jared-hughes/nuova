@@ -45,6 +45,11 @@ void ms(u32 a, u32 v) {
   gw(a);
   mem[a] = v;
 }
+
+void ms_log(u32 a, u32 v) {
+  ms(a, v);
+  fprintf(stderr, "ms(%08X, %08X)\n", a, v);
+}
 /** t = secondary memory,
  * ai = address into this memory (always increases but overflow) */
 uint16_t t[16640], ai;
@@ -91,17 +96,54 @@ char *mnemonic(int v) {
   default: return "P(a,a);P(b,b);P(c,c)";
   }
 }
+typedef struct Symbol {
+  u32 pos;
+  char *name;
+} Symbol;
+Symbol *symbols;
+u32 num_symbols = 0;
+
+char *name(u32 pos) {
+  for (u32 i = 0; i < num_symbols; i++) {
+    if (symbols[i].pos == pos) {
+      return symbols[i].name;
+    }
+  }
+  return NULL;
+}
+
+#define SET_IP(x)                                                              \
+  {                                                                            \
+    ip = (x);                                                                  \
+    char *n = name(ip);                                                        \
+    if (n != NULL)                                                             \
+      fprintf(stderr, "ip = %08X (%s)\n", ip, n);                              \
+  }
+
+#define IP_PP                                                                  \
+  { SET_IP(ip + 1); }
+
 int main(int argc, char *argv[]) {
   for (int i = 0; i < 256; i++)
     for (int j = 0; j < 65; j++)
       t[i * 65 + j] = i == 0 ? j << 10 : t[j];
+  FILE *symbolsFile = fopen("symbols", "r");
+  while (!feof(symbolsFile)) {
+    Symbol s;
+    u32 cnt = fscanf(symbolsFile, "%08X %ms", &(s.pos), &(s.name));
+    if (cnt == 2) {
+      symbols = realloc(symbols, ++num_symbols * sizeof(*symbols));
+      symbols[num_symbols - 1] = s;
+    }
+  }
+  fclose(symbolsFile);
   FILE *in = fopen(argv[1], "rb");
   u32 idx = 0;
   while (!feof(in)) {
     uint8_t instr = fgetc(in);
     ms(idx, mg(idx) ^ instr);
     if (instr > 0)
-      fprintf(stderr, "%04X: %08X from %02X\n", idx, mem[idx], instr);
+      fprintf(stderr, "%08X: %08X from %02X\n", idx, mem[idx], instr);
     idx++;
     if ((instr & 15) == 15) {
       u32 value = 0;
@@ -109,7 +151,7 @@ int main(int argc, char *argv[]) {
       for (int i = 0; i < 4; i++)
         value = (value << 8) | fgetc(in);
       ms(idx, mg(idx) ^ value);
-      fprintf(stderr, "%04X: %08X from %08X\n", idx, mem[idx], value);
+      fprintf(stderr, "%08X: %08X from %08X\n", idx, mem[idx], value);
       idx++;
     }
   }
@@ -117,46 +159,65 @@ int main(int argc, char *argv[]) {
   // set the last word with complicated formula
   for (u32 i = 1; i < idx; i++)
     ms(idx, mg(idx) ^ sse(mg(i - 1) & 255, mg(i) & 255, pc(mg(i)) & 1));
-  fprintf(stderr, "%04X: %08X from sse\n\n", idx, mem[idx]);
+  fprintf(stderr, "%08X: %08X from sse\n\n", idx, mem[idx]);
   // the action begins
   // a,b,c registers; a is special
   u32 a = 0x66, b = 0xF0, c = 0x0F, ip = 0;
 
   for (u32 i = 0xFFFFF; i--;) {
-    u32 v = mg(ip++);
+    u32 v = mg(ip);
     char *mn = mnemonic(v);
     if (*mn != 'P') {
-      fprintf(stderr, "%04X: ", ip - 1);
-      fprintf(stderr, "ip=%04X; mg(ip)=%08X; ", ip, mg(ip));
+      fprintf(stderr, "%08X: ", ip - 1);
+      fprintf(stderr, "mg(ip+1)=%08X; ", mg(ip));
       fprintf(stderr, "a=%08X; b=%08X; c=%08X; ", a, b, c);
       fprintf(stderr, (v >> 8) ? "0x%08X: " : "0x%02X: ", v);
       fprintf(stderr, "%s\n", mnemonic(v));
     }
+    IP_PP;
     switch (v) {
-    case 0x0F: a = mg(ip++); break;
-    case 0x1F: b = mg(ip++); break;
-    case 0x2F: c = mg(ip++); break;
-    case 0x3F: ip = mg(ip++); break;
+    case 0x0F:
+      a = mg(ip);
+      IP_PP;
+      break;
+    case 0x1F:
+      b = mg(ip);
+      IP_PP;
+      break;
+    case 0x2F: c = mg(ip); IP_PP break;
+    case 0x3F: SET_IP(mg(ip)); break;
     case 0x4F:
       if (a <= b)
-        ip = mg(ip++);
+        SET_IP(mg(ip));
       break;
     case 0x5F:
       if (b >= c)
-        ip = mg(ip++);
+        SET_IP(mg(ip));
       break;
-    case 0x6F: a = sse(b & 0xFF, c & 0xFF, pc(mg(ip++)) & 1); break;
-    case 0x00: ms(ip++, a); break;
-    case 0x10: ms(ip++, b); break;
-    case 0x20: ms(ip++, c); break;
-    case 0x30: ms(a, b); break;
-    case 0x40: ms(a, c); break;
-    case 0x50: ms(a, mg(a)); break;
+    case 0x6F:
+      a = sse(b & 0xFF, c & 0xFF, pc(mg(ip)) & 1);
+      IP_PP;
+      break;
+    case 0x00:
+      ms_log(ip, a);
+      IP_PP;
+      break;
+    case 0x10:
+      ms_log(ip, b);
+      IP_PP;
+      break;
+    case 0x20:
+      ms_log(ip, c);
+      IP_PP;
+      break;
+    case 0x30: ms_log(a, b); break;
+    case 0x40: ms_log(a, c); break;
+    case 0x50: ms_log(a, mg(a)); break;
     case 0x60: b = a; break;
     case 0x70: c = a; break;
     case 0x80: a = b; break;
     case 0x90: a = c; break;
-    case 0xA0: ip = a; break;
+    case 0xA0: SET_IP(a); break;
     case 0xB0: a = b + c; break;
     case 0xC0: a = b - c; break;
     case 0xD0:
@@ -166,7 +227,7 @@ int main(int argc, char *argv[]) {
       break;
     case 0xE0:
       a = getchar();
-      fprintf(stderr, "got %c\n", a);
+      fprintf(stderr, "got %c 0x%02X\n", a, a);
       break;
     case 0xF0: return 0;
     default:
