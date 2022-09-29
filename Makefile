@@ -14,4 +14,4 @@ run-test: test
 	./test
 
 test: test.c
-	gcc test.c -O3 -o test
+	gcc test.c -g -O3 -o test

@@ -100,7 +100,8 @@ int main(int argc, char *argv[]) {
   while (!feof(in)) {
     uint8_t instr = fgetc(in);
     ms(idx, mg(idx) ^ instr);
-    fprintf(stderr, "%04X: %08X from %02X\n", idx, mem[idx], instr);
+    if (instr > 0)
+      fprintf(stderr, "%04X: %08X from %02X\n", idx, mem[idx], instr);
     idx++;
     if ((instr & 15) == 15) {
       u32 value = 0;

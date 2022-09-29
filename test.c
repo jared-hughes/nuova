@@ -48,7 +48,7 @@ void gw(u32 a) {
       SADGE("Too Long");
     mem = realloc(mem, s * sizeof(u32));
     input = realloc(input, s * sizeof(u32));
-    filled = realloc(input, s * sizeof(u32));
+    filled = realloc(filled, s * sizeof(u32));
     for (; i < s; i++) {
       mem[i] = 0;
       input[i] = 0;
@@ -133,13 +133,96 @@ void emit_from_mem() {
   printf("Bytes: %d\n", bytes);
 }
 
+FILE *cacheFile;
+
+typedef struct TsfavCacheData {
+  u32 searchIdx;
+  u32 resolvedIdx;
+  u32 value;
+  u32 A;
+  u32 B;
+  u32 C;
+  u32 D;
+} TsfavCacheData;
+
+void printData(TsfavCacheData data) {
+  printf("{%08X, %08X, %08X, %08X, %08X, %08X, %08X}", data.searchIdx,
+         data.resolvedIdx, data.value, data.A, data.B, data.C, data.D);
+}
+
+typedef struct TsfavCacheNode {
+  TsfavCacheData data;
+  struct TsfavCacheNode *next;
+} TsfavCacheNode;
+
+TsfavCacheNode *tsfavHead;
+TsfavCacheNode *tsfavTail;
+
+TsfavCacheData *find_in_cache(u32 searchIdx, u32 value) {
+  TsfavCacheNode *node = tsfavHead;
+  while (node != NULL) {
+    if (node->data.searchIdx == searchIdx && node->data.value == value) {
+      printf("Found in cache: ");
+      printData(node->data);
+      printf("\n");
+      return &(node->data);
+    }
+    node = node->next;
+  }
+  return NULL;
+}
+
+void add_to_mem_cache(TsfavCacheData data) {
+  printf("Adding to cache: ");
+  printData(data);
+  printf("\n");
+  TsfavCacheNode *node = malloc(sizeof(TsfavCacheNode));
+  node->data = data;
+  node->next = NULL;
+  if (tsfavHead == NULL) {
+    tsfavHead = node;
+    tsfavTail = node;
+  } else {
+    tsfavTail->next = node;
+    tsfavTail = node;
+  }
+}
+
+void add_to_cache(TsfavCacheData data) {
+  add_to_mem_cache(data);
+  if (cacheFile != NULL)
+    fwrite(&data, sizeof(TsfavCacheData), 1, cacheFile);
+  else
+    printf("Cache file is null, so not appending to disk\n");
+}
+
+#define CACHE_FILE "tsfav_cache"
+
+void build_cache() {
+  TsfavCacheData data;
+  cacheFile = fopen(CACHE_FILE, "rb");
+  if (cacheFile) {
+    while (1) {
+      size_t count = fread(&data, sizeof(TsfavCacheData), 1, cacheFile);
+      if (count != 1) {
+        if (feof(cacheFile))
+          break;
+        else
+          SADGE("Cache file reading oopsie")
+      }
+      add_to_mem_cache(data);
+    }
+    fclose(cacheFile);
+  }
+  cacheFile = fopen(CACHE_FILE, "ab");
+}
+
 /**
  * Set the value of `a` to `value` at idx + 21.
  * Requires writing spawn mem from idx to idx + 21 inclusive
  * Tramples over b and c but small
- * TODO: ensure no xF in XORed
  **/
-u32 try_set_force_a_value(u32 idx, u32 value) {
+TsfavCacheData try_set_force_a_value(u32 searchIdx, u32 idx, u32 value) {
   printf("Trying %08X\n", idx);
   for (u32 A = 0; A < 256; A++) {
     if ((A & 0xF) == 0xF)
@@ -174,26 +257,31 @@ u32 try_set_force_a_value(u32 idx, u32 value) {
 
           if (a == inverseP(value)) {
             printf("Succeeded at %08X\n", idx);
-            ms_simple(idx + 1, 0x1F);             // b =
-            ms_simple(idx + 2, A ^ P(idx + 2));   // A ^ P(idx + 2);
-            ms_simple(idx + 4, 0x2F);             // P(); c =
-            ms_simple(idx + 5, B ^ P(idx + 5));   // B ^ P(idx + 5);
-            ms_simple(idx + 7, 0xB0);             // P(); a = b + c;
-            ms_simple(idx + 9, 0x60);             // P(); b = a;
-            ms_simple(idx + 11, 0x2F);            // P(); c =
-            ms_simple(idx + 12, C ^ P(idx + 12)); // C ^ P(idx + 12);
-            ms_simple(idx + 14, 0xB0);            // P(); a = b + c;
-            ms_simple(idx + 16, 0x60);            // P(); b = a;
-            ms_simple(idx + 18, 0x2F);            // P(); c =
-            ms_simple(idx + 19, D ^ P(idx + 19)); // D ^ P(idx + 19);
-            ms_simple(idx + 21, 0xB0);            // P(); a = b + c = value
-            return 1;
+            return (TsfavCacheData){searchIdx, idx, value, A, B, C, D};
           }
         }
       }
     }
   }
-  return 0;
+  return (TsfavCacheData){0, 0, 0, 0, 0, 0, 0};
+}
+
+void force_a_value_from_struct(TsfavCacheData data) {
+  u32 idx = data.resolvedIdx;
+  // add_to_cache();
+  ms_simple(idx + 1, 0x1F);                  // b =
+  ms_simple(idx + 2, data.A ^ P(idx + 2));   // A ^ P(idx + 2);
+  ms_simple(idx + 4, 0x2F);                  // P(); c =
+  ms_simple(idx + 5, data.B ^ P(idx + 5));   // B ^ P(idx + 5);
+  ms_simple(idx + 7, 0xB0);                  // P(); a = b + c;
+  ms_simple(idx + 9, 0x60);                  // P(); b = a;
+  ms_simple(idx + 11, 0x2F);                 // P(); c =
+  ms_simple(idx + 12, data.C ^ P(idx + 12)); // C ^ P(idx + 12);
+  ms_simple(idx + 14, 0xB0);                 // P(); a = b + c;
+  ms_simple(idx + 16, 0x60);                 // P(); b = a;
+  ms_simple(idx + 18, 0x2F);                 // P(); c =
+  ms_simple(idx + 19, data.D ^ P(idx + 19)); // D ^ P(idx + 19);
+  ms_simple(idx + 21, 0xB0);                 // P(); a = b + c = value
 }
 
 /**
@@ -202,16 +290,25 @@ u32 try_set_force_a_value(u32 idx, u32 value) {
  * Might need to backtrack some, so leave some space
  */
 void force_a_value(u32 idx, u32 value) {
+  u32 searchIdx = idx;
   printf("forcing %04X: a=%08X\n", idx, value);
   for (u32 i = idx; i >= idx - 21; i--) {
     if (filled[i])
       SADGE("Already filled in, at force_a_value")
   }
+  TsfavCacheData *data = find_in_cache(idx, value);
+  if (data != NULL) {
+    force_a_value_from_struct(*data);
+    return;
+  }
   for (;; idx--) {
     printf("Trying idx %04x\n", idx);
-    u32 successful = try_set_force_a_value(idx - 21, value);
-    if (successful)
+    TsfavCacheData res = try_set_force_a_value(searchIdx, idx - 21, value);
+    if (res.searchIdx > 0) {
+      force_a_value_from_struct(res);
+      add_to_cache(res);
       return;
+    }
     value = inverseP(value);
   }
 }
@@ -293,7 +390,7 @@ void find_hash_mods() {
 Set inverses_set(u32 value) {
   u32 n;
   if (value > 255) {
-    printf("You've done an oopsie. value>255 so working hard to find n\n");
+    printf("Oopsie? value>255 so working hard to find n\n");
     n = find_hash_mod(value);
   } else {
     n = MODS[value];
@@ -322,7 +419,6 @@ int set_has_value(Set *s, u32 value) {
 
 // end = P^{s}(start) if s = stepsFrom(start, end);
 u32 stepsFrom(u32 start, u32 end) {
-  printf("start=%08X, end=%08X\n", start, end);
   u32 v = start;
   for (u32 i = 0;; i++) {
     if (v == end)
@@ -342,11 +438,19 @@ u32 inversePn(u32 end, u32 n) {
   return end;
 }
 
+u32 rangeIsOpen(u32 start, u32 end) {
+  for (u32 i = start; i <= end; i++) {
+    if (filled[i])
+      return 0;
+  }
+  return 1;
+}
+
 /**
  * ms(setIdx, setValue)
  **/
 void initMemset(u32 setIdx, u32 setValue) {
-  printf("ms(%08x, %08x);", setIdx, setValue);
+  printf("\nms(%08x, %08x);\n", setIdx, setValue);
   // End goal:
   // at idx1: a = inverseP^{i - idx1 + 2 + stepsFrom(b1, setValue)}(setIdx)
   // at i-1: a = inverseP^{2 + stepsFrom(b1, setValue)}(setIdx)
@@ -371,20 +475,13 @@ void initMemset(u32 setIdx, u32 setValue) {
         printf("i = %08X; endpt = %08X\n", i, endpt);
         // check clean
         gw(endpt);
-        for (u32 j = i - 22; j <= endpt; j++) {
-          if (filled[j]) {
-            for (i = j; filled[i];) {
-              i++;
-            }
-            printf("nonempty\n");
-            goto no_work;
-          }
+        if (!rangeIsOpen(i - 22, endpt)) {
+          printf("nonempty\n");
+          continue;
         }
-        printf("forceroo\n");
-        // Why +4??
+        printf("\n--- %08x'ish to %08x: initMemset(%08x, %08x)\n\n", i - 23,
+               endpt, setIdx, setValue);
         force_a_value(i - 1, inversePn(setIdx, endpt - (i - 1) - 4));
-        // filleroo
-        printf("filleroo\n");
         ms_simple(i + 1, 0x1F);         // b =
         ms_simple(i + 2, B ^ P(i + 2)); // B ^ P(i + 2);
         padding(i + 3, endpt - 2);
@@ -411,7 +508,7 @@ void cat_terminating() {
   u32 p = 0x4a00;
   ms_simple(p, 0x1F);           // b = P(p+1)^0xFF;
   ms_simple(p + 2, 0xE0);       // a = getchar();
-  initMemset(p + 3, 0x4F);      // if (a = b) ip =
+  initMemset(p + 3, 0x4F);      // if (a <= b) ip =
   ms_simple(p + 4, p + 8);      // p + 8;
   ms_simple(p + 6, 0xF0);       // exit(0)
   ms_simple(p + 8, 0xD0);       // putchar(a)
@@ -420,4 +517,92 @@ void cat_terminating() {
   emit_from_mem();
 }
 
-int main() { cat_nonterminating(); }
+void ms_smart(u32 idx, u32 v) {
+  gw(idx);
+  if (!filled[idx - 1] || (v ^ P(idx)) >> 8 == 0)
+    return ms_simple(idx, v);
+  return initMemset(idx, v);
+}
+
+void fizzbuzz() {
+  //    c = 0
+  // getc:
+  //    b = getchar();
+  //    if (b != EOF) ip = c10;
+  //    else PPP
+  // print:
+  //    c = mg(num_lines)
+  //    exit(0) // actual fizzbuzz printing will go here
+  // c10:
+  //    c *= 10
+  // cplus:
+  //    c += b - 48
+  //    ms(num_lines, c)
+  //    ip = getc
+
+  u32 p = 0xF0000;
+  u32 num_lines = p - 20;
+  u32 getc = p + 10;
+  u32 print = getc + 16;
+  u32 c10 = print + 10;
+  u32 cplus = c10 + 11;
+  // p: c = 0
+  ms_simple(p, 0x60);     // P(); b = a;
+  ms_simple(p + 2, 0x70); // P(); c = a;
+  ms_simple(p + 4, 0xC0); // P(); a = b - c
+  ms_simple(p + 6, 0x70); // P(); c = a
+
+  // getc: b = getchar(); if (b != EOF) ip = c10; else PPP
+  ms_smart(getc, 0xE0);     // a = getchar();
+  ms_smart(getc + 1, 0x60); // b = a
+  ms_smart(getc + 2, 0x0F); // a = P(cplus + 3) ^ 0xFF
+  // note skip here for the imm of prev
+  ms_smart(getc + 4, 0x4F); // if (a <= b) ip =
+  ms_smart(getc + 5, c10);  // c10
+
+  // print: exit(0)
+
+  // c10: c *= 10
+  ms_smart(c10, 0x90);      // a=c
+  ms_smart(c10 + 1, 0x60);  // b=a
+  ms_smart(c10 + 2, 0xB0);  // a=b+c
+  ms_smart(c10 + 3, 0x70);  // c=a
+  ms_smart(c10 + 4, 0x60);  // b=a
+  ms_smart(c10 + 5, 0xB0);  // a=b+c
+  ms_smart(c10 + 6, 0x60);  // b=a
+  ms_smart(c10 + 7, 0xB0);  // a=b+c
+  ms_smart(c10 + 8, 0x70);  // c=a
+  ms_smart(c10 + 9, 0xB0);  // a=b+c
+  ms_smart(c10 + 10, 0x70); // c=a
+
+  // cplus: c += a - 48; ms(num_lines, c); ip = c10
+  ms_smart(cplus, 0xE0);          // a = getchar();
+  ms_smart(cplus + 1, 0x60);      // b = a;
+  ms_smart(cplus + 2, 0x0F);      // a =
+  ms_smart(cplus + 3, num_lines); // num_lines;
+  ms_smart(cplus + 4, 0x30);      // ms(a, b)
+  ms_smart(cplus + 5, 0x0F);      // a = P(cplus + 3) ^ 0xFF
+  ms_smart(cplus + 7, 0x4F);      // if (a <= b) ip =
+  ms_smart(cplus + 8, print);     // print
+  ms_smart(cplus + 9, 0x70);      // a = b + c
+  ms_smart(cplus + 10, 0x60);     // b = a;
+  ms_smart(cplus + 11, 0x2F);     // c =
+  ms_smart(cplus + 12, 48);       // 48 = '0';
+  ms_smart(cplus + 13, 0xC0);     // a = b - c;
+  ms_smart(cplus + 14, 0x70);     // c = a;
+  ms_smart(cplus + 15, 0x3F);     // ip =
+  ms_smart(cplus + 16, c10);      // c10
+
+  // print:
+  ms_smart(print, 0xF0); // exit(0)
+
+  // remove later
+  pushExit();
+
+  emit_from_mem();
+}
+
+int main() {
+  build_cache();
+  cat_terminating();
+}
