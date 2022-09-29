@@ -537,25 +537,22 @@ void add_symbol(u32 idx, char *name) {
 
 void fizzbuzz() {
   //    c = 0
-  // c10:
-  //    c *= 10 [polluting a,b]
   // getc:
-  //    b = getchar();
-  //    if (b != EOF) [polluting a]
-  //      ip = c10;
+  //    a = getchar();
+  //    if (a != EOF) [polluting a]
+  //      ip = cplus;
   //    else PPP
   // print:
   //    c = mg(num_lines)
   //    exit(0) // actual fizzbuzz printing will go here
   // cplus:
-  //    c += b - 48 [polluting a,b]
+  //    c = 10*c + a - 48 [polluting a,b]
   //    ms(num_lines, c)
   //    ip = c10
 
   u32 p = 0xF0000;
   u32 num_lines = p - 20;
-  u32 c10 = p + 10;
-  u32 getc = c10 + 11;
+  u32 getc = p + 10;
   u32 print = getc + 5;
   u32 cplus = print + 100;
   // p: c = 0
@@ -564,20 +561,6 @@ void fizzbuzz() {
   ms_simple(p + 2, 0x70); // P(); c = a;
   ms_simple(p + 4, 0xC0); // P(); a = b - c
   ms_simple(p + 6, 0x70); // P(); c = a
-
-  // c10: c *= 10
-  add_symbol(c10, "c10");
-  ms_smart(c10, 0x90);      // a=c
-  ms_smart(c10 + 1, 0x60);  // b=a
-  ms_smart(c10 + 2, 0xB0);  // a=b+c
-  ms_smart(c10 + 3, 0x70);  // c=a
-  ms_smart(c10 + 4, 0x60);  // b=a
-  ms_smart(c10 + 5, 0xB0);  // a=b+c
-  ms_smart(c10 + 6, 0x60);  // b=a
-  ms_smart(c10 + 7, 0xB0);  // a=b+c
-  ms_smart(c10 + 8, 0x70);  // c=a
-  ms_smart(c10 + 9, 0xB0);  // a=b+c
-  ms_smart(c10 + 10, 0x70); // c=a
 
   // getc: a = getchar(); if (a != EOF) ip = c10; else PPP
   add_symbol(getc, "getc");
@@ -592,22 +575,24 @@ void fizzbuzz() {
   ms_smart(print, 0xF0); // exit(0)
 
   // cplus:
-  // c += a - 48;
+  // c = 10*c + a - '0';
   add_symbol(cplus, "cplus");
-  ms_smart(cplus, 0x60);     // b = a
-  ms_smart(cplus + 1, 0xB0); // a = b + c
-  ms_smart(cplus + 2, 0x60); // b = a;
-  ms_smart(cplus + 3, 0x2F); // c =
-  ms_smart(cplus + 4, 48);   // 48 = '0';
-  ms_smart(cplus + 5, 0xC0); // a = b - c;
-  ms_smart(cplus + 6, 0x70); // c = a;
+  for (u32 i = 0; i < 10; i++) {
+    ms_smart(cplus + 2 * i, 0x60);     // b = a
+    ms_smart(cplus + 2 * i + 1, 0xB0); // a = b + c
+  }
+  ms_smart(cplus + 20, 0x60); // b = a;
+  ms_smart(cplus + 21, 0x2F); // c =
+  ms_smart(cplus + 22, 48);   // 48 = '0';
+  ms_smart(cplus + 23, 0xC0); // a = b - c;
+  ms_smart(cplus + 24, 0x70); // c = a;
   // ms(num_lines, c);
-  ms_smart(cplus + 7, 0x0F);      // a=
-  ms_smart(cplus + 8, num_lines); // num_lines
-  ms_smart(cplus + 9, 0x40);      // ms(a, c)
+  ms_smart(cplus + 25, 0x0F);      // a=
+  ms_smart(cplus + 26, num_lines); // num_lines
+  ms_smart(cplus + 27, 0x40);      // ms(a, c)
   // ip = getc
-  ms_smart(cplus + 10, 0x3F); // ip =
-  ms_smart(cplus + 11, c10);  // c10
+  ms_smart(cplus + 28, 0x3F); // ip =
+  ms_smart(cplus + 29, getc); // c10
 
   // remove later
   pushExit();
