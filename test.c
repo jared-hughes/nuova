@@ -1,6 +1,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 typedef uint32_t u32;
 
@@ -57,10 +58,10 @@ void gw(u32 a) {
   }
 }
 /** mem set: set mem[idx] <- v at initial load, ensuring length at least idx+1*/
-void ms_simple(u32 idx, u32 v) {
+void ms_simple_inner(u32 idx, u32 v) {
   gw(idx);
   if (filled[idx]) {
-    printf("Already filled, at %08x\n", idx);
+    fprintf(stderr, "Already filled, at %08X\n", idx);
     exit(1);
   }
   u32 xor = v ^ P(idx);
@@ -95,6 +96,10 @@ u32 padding_char(u32 idx) {
     }
   }
 }
+void ms_simple(u32 idx, u32 v) {
+  printf("ms_simple(0x%08X, 0x%08X)\n", idx, v);
+  ms_simple_inner(idx, v);
+}
 
 /**
  * Fills in [start, ..., end] with all padding: PPP every time, exactly
@@ -104,7 +109,7 @@ u32 padding_char(u32 idx) {
 void padding(u32 start, u32 end) {
   for (u32 j = start; j <= end; j++) {
     // TODO: avoid accidental instruction
-    ms_simple(j, P(j) ^ padding_char(j)); // bunch of PPP;
+    ms_simple_inner(j, P(j) ^ padding_char(j)); // bunch of PPP;
   }
 }
 
@@ -146,8 +151,9 @@ typedef struct TsfavCacheData {
 } TsfavCacheData;
 
 void printData(TsfavCacheData data) {
-  printf("{%08X, %08X, %08X, %08X, %08X, %08X, %08X}", data.searchIdx,
-         data.resolvedIdx, data.value, data.A, data.B, data.C, data.D);
+  fprintf(stderr, "{0x%08X, 0x%08X, 0x%08X, 0x%08X, 0x%08X, 0x%08X, 0x%08X}",
+          data.searchIdx, data.resolvedIdx, data.value, data.A, data.B, data.C,
+          data.D);
 }
 
 typedef struct TsfavCacheNode {
@@ -162,9 +168,9 @@ TsfavCacheData *find_in_cache(u32 searchIdx, u32 value) {
   TsfavCacheNode *node = tsfavHead;
   while (node != NULL) {
     if (node->data.searchIdx == searchIdx && node->data.value == value) {
-      printf("Found in cache: ");
+      fprintf(stderr, "Found in cache: ");
       printData(node->data);
-      printf("\n");
+      fprintf(stderr, "\n");
       return &(node->data);
     }
     node = node->next;
@@ -173,9 +179,9 @@ TsfavCacheData *find_in_cache(u32 searchIdx, u32 value) {
 }
 
 void add_to_mem_cache(TsfavCacheData data) {
-  printf("Adding to cache: ");
-  printData(data);
-  printf("\n");
+  // fprintf(stderr, "Adding to cache: ");
+  // printData(data);
+  // fprintf(stderr, "\n");
   TsfavCacheNode *node = malloc(sizeof(TsfavCacheNode));
   node->data = data;
   node->next = NULL;
@@ -191,11 +197,11 @@ void add_to_mem_cache(TsfavCacheData data) {
 void add_to_cache(TsfavCacheData data) {
   add_to_mem_cache(data);
   if (cacheFile != NULL) {
-    printf("Writing to file\n");
+    // fprintf(stderr, "Writing to file\n");
     fwrite(&data, sizeof(TsfavCacheData), 1, cacheFile);
     fflush(cacheFile);
   } else
-    printf("Cache file is null, so not appending to disk\n");
+    fprintf(stderr, "Cache file is null, so not appending to disk\n");
 }
 
 #define CACHE_FILE "tsfav_cache"
@@ -269,19 +275,19 @@ TsfavCacheData try_set_force_a_value(u32 searchIdx, u32 idx, u32 searchValue,
 void force_a_value_from_struct(TsfavCacheData data) {
   u32 idx = data.resolvedIdx;
   // add_to_cache();
-  ms_simple(idx + 1, 0x1F);                  // b =
-  ms_simple(idx + 2, data.A ^ P(idx + 2));   // A ^ P(idx + 2);
-  ms_simple(idx + 4, 0x2F);                  // P(); c =
-  ms_simple(idx + 5, data.B ^ P(idx + 5));   // B ^ P(idx + 5);
-  ms_simple(idx + 7, 0xB0);                  // P(); a = b + c;
-  ms_simple(idx + 9, 0x60);                  // P(); b = a;
-  ms_simple(idx + 11, 0x2F);                 // P(); c =
-  ms_simple(idx + 12, data.C ^ P(idx + 12)); // C ^ P(idx + 12);
-  ms_simple(idx + 14, 0xB0);                 // P(); a = b + c;
-  ms_simple(idx + 16, 0x60);                 // P(); b = a;
-  ms_simple(idx + 18, 0x2F);                 // P(); c =
-  ms_simple(idx + 19, data.D ^ P(idx + 19)); // D ^ P(idx + 19);
-  ms_simple(idx + 21, 0xB0);                 // P(); a = b + c = value
+  ms_simple_inner(idx + 1, 0x1F);                  // b =
+  ms_simple_inner(idx + 2, data.A ^ P(idx + 2));   // A ^ P(idx + 2);
+  ms_simple_inner(idx + 4, 0x2F);                  // P(); c =
+  ms_simple_inner(idx + 5, data.B ^ P(idx + 5));   // B ^ P(idx + 5);
+  ms_simple_inner(idx + 7, 0xB0);                  // P(); a = b + c;
+  ms_simple_inner(idx + 9, 0x60);                  // P(); b = a;
+  ms_simple_inner(idx + 11, 0x2F);                 // P(); c =
+  ms_simple_inner(idx + 12, data.C ^ P(idx + 12)); // C ^ P(idx + 12);
+  ms_simple_inner(idx + 14, 0xB0);                 // P(); a = b + c;
+  ms_simple_inner(idx + 16, 0x60);                 // P(); b = a;
+  ms_simple_inner(idx + 18, 0x2F);                 // P(); c =
+  ms_simple_inner(idx + 19, data.D ^ P(idx + 19)); // D ^ P(idx + 19);
+  ms_simple_inner(idx + 21, 0xB0);                 // P(); a = b + c = value
 }
 
 /**
@@ -289,10 +295,9 @@ void force_a_value_from_struct(TsfavCacheData data) {
  * Requires at least 21 mem before that (so 22 total)
  * Might need to backtrack some, so leave some space
  */
-void force_a_value(u32 idx, u32 value) {
+void force_a_value_inner(u32 idx, u32 value) {
   u32 searchIdx = idx;
   u32 searchValue = value;
-  printf("forcing %04X: a=%08X\n", idx, value);
   for (u32 i = idx; i >= idx - 21; i--) {
     if (filled[i])
       SADGE("Already filled in, at force_a_value")
@@ -302,9 +307,9 @@ void force_a_value(u32 idx, u32 value) {
     force_a_value_from_struct(*data);
     return;
   }
-  printf("cache miss %08X %08X\n", idx, value);
+  fprintf(stderr, "cache miss 0x%08X 0x%08X\n", idx, value);
   for (;; idx--) {
-    printf("Trying idx %04x\n", idx);
+    fprintf(stderr, "Trying idx 0x%08X\n", idx);
     TsfavCacheData res =
         try_set_force_a_value(searchIdx, idx - 21, searchValue, value);
     if (res.searchIdx > 0) {
@@ -314,6 +319,10 @@ void force_a_value(u32 idx, u32 value) {
     }
     value = inverseP(value);
   }
+}
+void force_a_value(u32 idx, u32 value) {
+  printf("0x%08X: .forceA 0x%08X\n", idx, value);
+  force_a_value_inner(idx, value);
 }
 
 #define SETSZ (1 << 18)
@@ -393,7 +402,7 @@ void find_hash_mods() {
 Set inverses_set(u32 value) {
   u32 n;
   if (value > 255) {
-    printf("Oopsie? value>255 so working hard to find n\n");
+    fprintf(stderr, "Oopsie? value>255 so working hard to find n\n");
     n = find_hash_mod(value);
   } else {
     n = MODS[value];
@@ -408,7 +417,7 @@ Set inverses_set(u32 value) {
         // big enough
         return s;
       } else {
-        printf("Invalid mod %d for value %08X", n, value);
+        printf("Invalid mod %d for value 0x%08X", n, value);
         exit(1);
       }
     }
@@ -428,7 +437,7 @@ u32 stepsFrom(u32 start, u32 end) {
       return i;
     v = P(v);
     if (v == start) {
-      printf("No path from %08X to %08X", start, end);
+      fprintf(stderr, "No path from 0x%08X to 0x%08X", start, end);
       exit(1);
     }
   }
@@ -453,7 +462,7 @@ u32 rangeIsOpen(u32 start, u32 end) {
  * ms(setIdx, setValue)
  **/
 void initMemset(u32 setIdx, u32 setValue) {
-  printf("\nms(%08x, %08x);\n", setIdx, setValue);
+  printf("initMemset(0x%08X, 0x%08X);\n", setIdx, setValue);
   // End goal:
   // at idx1: a = inverseP^{i - idx1 + 2 + stepsFrom(b1, setValue)}(setIdx)
   // at i-1: a = inverseP^{2 + stepsFrom(b1, setValue)}(setIdx)
@@ -475,20 +484,21 @@ void initMemset(u32 setIdx, u32 setValue) {
       u32 b1 = B ^ P(i + 2);
       if (set_has_value(&inverses, b1)) {
         u32 endpt = i + 3 + stepsFrom(b1, setValue);
-        printf("i = %08X; endpt = %08X\n", i, endpt);
+        fprintf(stderr, "i = 0x%08X; endpt = 0x%08X\n", i, endpt);
         // check clean
         gw(endpt);
         if (!rangeIsOpen(i - 22, endpt)) {
-          printf("nonempty\n");
+          fprintf(stderr, "nonempty\n");
           continue;
         }
-        printf("\n--- %08x'ish to %08x: initMemset(%08x, %08x)\n\n", i - 23,
-               endpt, setIdx, setValue);
-        force_a_value(i - 1, inversePn(setIdx, endpt - (i - 1) - 4));
-        ms_simple(i + 1, 0x1F);         // b =
-        ms_simple(i + 2, B ^ P(i + 2)); // B ^ P(i + 2);
+        fprintf(stderr,
+                "\n--- 0x%08X'ish to 0x%08X: initMemset(0x%08X, 0x%08X)\n\n",
+                i - 23, endpt, setIdx, setValue);
+        force_a_value_inner(i - 1, inversePn(setIdx, endpt - (i - 1) - 4));
+        ms_simple_inner(i + 1, 0x1F);         // b =
+        ms_simple_inner(i + 2, B ^ P(i + 2)); // B ^ P(i + 2);
         padding(i + 3, endpt - 2);
-        ms_simple(endpt, 0x30); // ms(a, b)
+        ms_simple_inner(endpt, 0x30); // ms(a, b)
         return;
       }
     no_work:
@@ -496,43 +506,49 @@ void initMemset(u32 setIdx, u32 setValue) {
   }
 }
 
-void pushExit() { ms_simple(s + 1, 0xF0); }
-
-void cat_nonterminating() {
-  u32 p = 0x4a00;
-  initMemset(p, 0xE0);          // p: getchar
-  ms_simple(p + 1, 0xD0);       // p + 1: putchar
-  force_a_value(p + 30, p - 1); // p+30: a = p-1
-  ms_simple(p + 32, 0xA0);      // p+34: a = p-1; ip = a;
-  emit_from_mem();
+void pushExit() {
+  printf("Push exit\n");
+  ms_simple_inner(s + 1, 0xF0);
 }
 
-void cat_terminating() {
-  u32 p = 0x4a00;
-  ms_simple(p, 0x1F);           // b = P(p+1)^0xFF;
-  ms_simple(p + 2, 0xE0);       // a = getchar();
-  initMemset(p + 3, 0x4F);      // if (a <= b) ip =
-  ms_simple(p + 4, p + 8);      // p + 8;
-  ms_simple(p + 6, 0xF0);       // exit(0)
-  ms_simple(p + 8, 0xD0);       // putchar(a)
-  force_a_value(p + 40, p - 1); // p+40: a = p-1
-  ms_simple(p + 42, 0xA0);      // p+42: a = p-1; ip = a;
-  emit_from_mem();
+u32 can_ms_simple(u32 idx, u32 v) {
+  return !filled[idx - 1] || (v ^ P(idx)) >> 8 == 0;
 }
 
 void ms_smart(u32 idx, u32 v) {
   gw(idx);
-  if (!filled[idx - 1] || (v ^ P(idx)) >> 8 == 0)
+  if (can_ms_simple(idx, v))
     return ms_simple(idx, v);
   return initMemset(idx, v);
 }
 
-FILE *symbolsFile;
+FILE *labelsFile;
 
-void prep_symbols() { symbolsFile = fopen("symbols", "w"); }
+void prep_labels() { labelsFile = fopen("labels", "w"); }
 
-void add_symbol(u32 idx, char *name) {
-  fprintf(symbolsFile, "%08X %s\n", idx, name);
+typedef struct Label {
+  u32 pos;
+  char *name;
+} Label;
+Label *labels;
+u32 num_labels = 0;
+
+void add_label(u32 idx, char *name) {
+  printf("New label: %s: 0x%08X\n", name, idx);
+  labels = realloc(labels, ++num_labels * sizeof(*labels));
+  labels[num_labels - 1] = (Label){idx, name};
+  fprintf(labelsFile, "0x%08X %s\n", idx, name);
+  fflush(labelsFile);
+}
+
+u32 get_label_pos(char *name) {
+  for (u32 i = 0; i < num_labels; i++) {
+    if (strcmp(labels[i].name, name) == 0) {
+      return labels[i].pos;
+    }
+  }
+  fprintf(stderr, "Undefined label: %s\n", name);
+  exit(1);
 }
 
 void fizzbuzz() {
@@ -556,14 +572,14 @@ void fizzbuzz() {
   u32 print = getc + 5;
   u32 cplus = print + 100;
   // p: c = 0
-  add_symbol(p, "p");
+  add_label(p, "p");
   ms_simple(p, 0x60);     // P(); b = a;
   ms_simple(p + 2, 0x70); // P(); c = a;
   ms_simple(p + 4, 0xC0); // P(); a = b - c
   ms_simple(p + 6, 0x70); // P(); c = a
 
   // getc: a = getchar(); if (a != EOF) ip = c10; else PPP
-  add_symbol(getc, "getc");
+  add_label(getc, "getc");
   ms_smart(getc, 0xE0);     // a = getchar();
   ms_smart(getc + 1, 0x1F); // b = P(getc + 2) ^ 0xFF
   // note skip here for the imm of prev
@@ -571,12 +587,12 @@ void fizzbuzz() {
   ms_smart(getc + 4, cplus); // cplus; else PPP
 
   // print: exit(0)
-  add_symbol(print, "print");
+  add_label(print, "print");
   ms_smart(print, 0xF0); // exit(0)
 
   // cplus:
   // c = 10*c + a - '0';
-  add_symbol(cplus, "cplus");
+  add_label(cplus, "cplus");
   for (u32 i = 0; i < 10; i++) {
     ms_smart(cplus + 2 * i, 0x60);     // b = a
     ms_smart(cplus + 2 * i + 1, 0xB0); // a = b + c
@@ -600,8 +616,205 @@ void fizzbuzz() {
   emit_from_mem();
 }
 
+typedef struct Mnemonic {
+  u32 value;
+  char *name;
+} Mnemonic;
+
+Mnemonic mnemonics[] = {
+    {0x0F, "a ="},
+    {0x1F, "b ="},
+    {0x2F, "c ="},
+    {0x3F, "ip ="},
+    {0x4F, "if (a <= b) ip =; else PPP"},
+    {0x5F, "if (b <= c) ip =; else PPP"},
+    {0x6F, "a = sse(...)"},
+    {0x00, "ms(ip, a)"},
+    {0x10, "ms(ip, b)"},
+    {0x20, "ms(ip, c)"},
+    {0x30, "ms(a, b)"},
+    {0x40, "ms(a, c)"},
+    {0x50, "ms(a, mg(a))"},
+    {0x60, "b = a"},
+    {0x70, "c = a"},
+    {0x80, "a = b"},
+    {0x90, "a = c"},
+    {0xA0, "ip = a"},
+    {0xB0, "a = b + c"},
+    {0xC0, "a = b - c"},
+    {0xD0, "putchar(a)"},
+    {0xE0, "a = getchar()"},
+    {0xF0, "exit"},
+};
+
+u32 mnemonic_value(char *s) {
+  for (u32 i = 0; i < LEN(mnemonics); i++) {
+    if (strcmp(mnemonics[i].name, s) == 0)
+      return mnemonics[i].value;
+  }
+  printf("Mnemonic not found: %s\n", s);
+  exit(1);
+}
+
+u32 is_label(char *line) {
+  for (; *line; line++) {
+    if (*line == ':')
+      return 1;
+  }
+  return 0;
+}
+
+void remove_trailing_colon(char *name) {
+  for (; *name; ++name) {
+    if (*name == ':')
+      *name = '\0';
+  }
+}
+
+void advance_past_spaces(char **s_ptr) {
+  while (**s_ptr == ' ') {
+    (*s_ptr)++;
+  }
+}
+
+u32 starts_with(char *s, char *prefix) {
+  return strncmp(prefix, s, strlen(prefix)) == 0;
+}
+
+u32 read_value(char *s) {
+  advance_past_spaces(&s);
+  if (*s == '\0') {
+    SADGE("Empty string value");
+  } else if (*s == '&')
+    return get_label_pos(s + 1);
+  else if (starts_with(s, "0x")) {
+    u32 val;
+    u32 cnt = sscanf(s, "%x", &val);
+    if (cnt != 1)
+      SADGE("Invalid literal");
+    return val;
+  }
+  SADGE("Invalid value. Should be &name or 0xAABBCCDD");
+};
+
+#define NO_NEXT_POS (-1)
+
+void my_getline(FILE *in, char **line) {
+  u32 len = 0;
+  while (!feof(in)) {
+    char c = fgetc(in);
+    len++;
+    *line = realloc(*line, len);
+    if (c == '\n') {
+      (*line)[len - 1] = 0;
+      return;
+    }
+    (*line)[len - 1] = c;
+  }
+}
+
+void load_from_file(char *filename) {
+  FILE *file = fopen(filename, "r");
+  u32 pad_ok = 1;
+  // The last filled in pos, or the one after that if pad_ok
+  u32 last_pos = 0;
+  // The next position, as dictated by label or something
+  u32 next_pos = NO_NEXT_POS;
+  char *line_malloc = malloc(10);
+  while (!feof(file)) {
+    my_getline(file, &line_malloc);
+    if (feof(file))
+      break;
+    char *line = line_malloc;
+    // Line options:
+    // comment, starts with //
+    // label, label with pos
+    //    p:
+    //    p: 0x4a00
+    // .pad_ok --> says its ok to put PPPs in here
+    // .forceA [value] --> has to be preceded by .pad_ok
+    // .trash --> any value really
+    // .val [value] --> precisely that value. best if preceded by .pad_ok
+    // mnemonic --> sugar for .val
+    //    a = getchar()
+    //    b = a
+    advance_past_spaces(&line);
+    // printf("Line: %s\n", line);
+    if (*line == '\0' || starts_with(line, "//") || starts_with(line, ";")) {
+      // comment or empty line, do nothing
+    } else if (is_label(line)) {
+      char *label;
+      char *name;
+      u32 pos;
+      u32 cnt = sscanf(line, "%ms %x", &name, &pos);
+      if (cnt == 0)
+        SADGE("Input error");
+      remove_trailing_colon(name);
+      if (cnt == 2) {
+        if (!pad_ok)
+          SADGE("Can't force position if not pad_ok")
+      } else if (cnt == 1) {
+        pos = last_pos + pad_ok + 1;
+      }
+      next_pos = pos;
+      add_label(pos, name);
+    } else if (starts_with(line, ".pad_ok")) {
+      pad_ok = 1;
+      next_pos = NO_NEXT_POS;
+    } else if (starts_with(line, ".forceA")) {
+      if (!pad_ok || next_pos != NO_NEXT_POS)
+        SADGE("Can't force A without padding");
+      u32 val = read_value(line + sizeof(".forceA") - 1);
+      // 30 is plenty of padding. Could probably easily go down to 25
+      force_a_value(last_pos + 29, val);
+      last_pos += 30;
+      pad_ok = 0;
+      next_pos = NO_NEXT_POS;
+    } else if (starts_with(line, ".trash")) {
+      if (pad_ok || next_pos != NO_NEXT_POS)
+        SADGE("Unexpected constraints on .trash")
+      last_pos += 1;
+    } else {
+      u32 val;
+      if (starts_with(line, ".val")) {
+        val = read_value(line + sizeof(".val") - 1);
+      } else {
+        val = mnemonic_value(line);
+      }
+      if (next_pos == NO_NEXT_POS) {
+        if (pad_ok && !can_ms_simple(last_pos + 1, val)) {
+          next_pos = last_pos + 2;
+        } else {
+          next_pos = last_pos + 1;
+        }
+      }
+      ms_smart(next_pos, val);
+      last_pos = next_pos;
+      next_pos = NO_NEXT_POS;
+      pad_ok = 0;
+    }
+  }
+  free(line_malloc);
+  emit_from_mem();
+}
+
+void cat_terminating() {
+  u32 p = 0x4a00;
+  ms_simple(p, 0x1F);           // b = P(p+1)^0xFF;
+  ms_simple(p + 2, 0xE0);       // a = getchar();
+  initMemset(p + 3, 0x4F);      // if (a <= b) ip =
+  ms_simple(p + 4, p + 8);      // p + 8;
+  ms_simple(p + 6, 0xF0);       // exit(0)
+  ms_simple(p + 8, 0xD0);       // putchar(a)
+  force_a_value(p + 40, p - 1); // p+40: a = p-1
+  ms_simple(p + 42, 0xA0);      // p+42: a = p-1; ip = a;
+  emit_from_mem();
+}
+
+void cat_nonterminating() { load_from_file("cat-non-terminating.s"); }
+
 int main() {
   build_cache();
-  prep_symbols();
-  fizzbuzz();
+  prep_labels();
+  cat_nonterminating();
 }

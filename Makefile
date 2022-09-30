@@ -11,7 +11,7 @@ nuova: nuova.c
 	gcc nuova.c -g -o nuova
 
 run-test: test
-	./test
+	./test 2> test.log
 
 test: test.c
 	gcc test.c -g -O3 -o test

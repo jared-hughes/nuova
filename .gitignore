@@ -2,6 +2,6 @@ nuova
 prog
 raw-nuova
 test
-nuova.log
+*.log
 tsfav_cache
-symbols
+labels

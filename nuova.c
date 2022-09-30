@@ -96,17 +96,17 @@ char *mnemonic(int v) {
   default: return "P(a,a);P(b,b);P(c,c)";
   }
 }
-typedef struct Symbol {
+typedef struct Label {
   u32 pos;
   char *name;
-} Symbol;
-Symbol *symbols;
-u32 num_symbols = 0;
+} Label;
+Label *labels;
+u32 num_labels = 0;
 
 char *name(u32 pos) {
-  for (u32 i = 0; i < num_symbols; i++) {
-    if (symbols[i].pos == pos) {
-      return symbols[i].name;
+  for (u32 i = 0; i < num_labels; i++) {
+    if (labels[i].pos == pos) {
+      return labels[i].name;
     }
   }
   return NULL;
@@ -127,16 +127,18 @@ int main(int argc, char *argv[]) {
   for (int i = 0; i < 256; i++)
     for (int j = 0; j < 65; j++)
       t[i * 65 + j] = i == 0 ? j << 10 : t[j];
-  FILE *symbolsFile = fopen("symbols", "r");
-  while (!feof(symbolsFile)) {
-    Symbol s;
-    u32 cnt = fscanf(symbolsFile, "%08X %ms", &(s.pos), &(s.name));
+  FILE *labelsFile = fopen("labels", "r");
+  while (!feof(labelsFile)) {
+    Label s;
+    u32 cnt = fscanf(labelsFile, "0x%08X %ms", &(s.pos), &(s.name));
     if (cnt == 2) {
-      symbols = realloc(symbols, ++num_symbols * sizeof(*symbols));
-      symbols[num_symbols - 1] = s;
+      labels = realloc(labels, ++num_labels * sizeof(*labels));
+      labels[num_labels - 1] = s;
+    } else {
+      break;
     }
   }
-  fclose(symbolsFile);
+  fclose(labelsFile);
   FILE *in = fopen(argv[1], "rb");
   u32 idx = 0;
   while (!feof(in)) {
