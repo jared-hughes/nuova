@@ -104,6 +104,10 @@ void ms_simple(u32 idx, u32 v) {
   ms_simple_inner(idx, v);
 }
 
+u32 can_ms_simple(u32 idx, u32 v) {
+  return !filled[idx - 1] || (v ^ P(idx)) >> 8 == 0;
+}
+
 /**
  * Fills in [start, ..., end] with all padding: PPP every time, exactly
  * end - start + 1 PPPs (no instr )
@@ -324,6 +328,30 @@ void force_a_value(u32 idx, u32 value) {
   force_a_value_inner(idx, value);
 }
 
+/**
+ * Putchars value&255 sometime after idx. Returns the new last_pos
+ */
+u32 force_putchar(u32 idx, u32 value) {
+  for (;; idx++) {
+    gw(idx);
+    if (filled[idx])
+      SADGE("oopsie: putchar overlap with filled")
+    if (!can_ms_simple(idx + 1, 0x0F)) {
+      continue;
+    }
+    for (u32 X = 0; X <= 0xFF; X++) {
+      if ((X & 15) == 15)
+        continue;
+      if ((P(X ^ P(idx + 2)) & 0xFF) == (value & 0xFF)) {
+        ms_simple_inner(idx + 1, 0x0F);           // PPP; a =
+        ms_simple_inner(idx + 2, X ^ P(idx + 2)); // X ^ P(idx + 2)
+        ms_simple_inner(idx + 4, 0xD0);           // PPP; putchar(a)
+        return idx + 4;
+      }
+    }
+  }
+}
+
 #define SETSZ (1 << 18)
 #define MINLOOKUP (1 << 11)
 // value in set if thing[value % n % SETSZ] == value
@@ -512,10 +540,6 @@ void pushExit() {
   ms_simple_inner(s + 1, 0xF0);
 }
 
-u32 can_ms_simple(u32 idx, u32 v) {
-  return !filled[idx - 1] || (v ^ P(idx)) >> 8 == 0;
-}
-
 void ms_smart(u32 idx, u32 v) {
   gw(idx);
   if (can_ms_simple(idx, v))
@@ -637,7 +661,12 @@ u32 read_value(char *s) {
     SADGE("Empty string value");
   } else if (*s == '&')
     return get_label_pos(s + 1);
-  else if (starts_with(s, "0x")) {
+  else if (*s == '\'') {
+    char c = *++s;
+    if (c == '\\')
+      SADGE("Char literal escapes not supported")
+    return c;
+  } else if (starts_with(s, "0x")) {
     u32 val;
     u32 cnt = sscanf(s, "%x", &val);
     if (cnt != 1)
@@ -662,6 +691,9 @@ void my_getline(FILE *in, char **line) {
     (*line)[len - 1] = c;
   }
 }
+
+#define ENSURE_NEXT_POS                                                        \
+  (next_pos == NO_NEXT_POS ? next_pos = last_pos + 1 : next_pos)
 
 /**
  * Go through the file and parse
@@ -689,6 +721,7 @@ void _load_from_file(char *filename, bool is_label_pass) {
     // .forceA [value]
     // .trash --> any value really
     // .val [value] --> precisely that value. golfs if preceded by .trash
+    // .putchar [value] --> putchars that value mod 256; PPP
     // mnemonic --> sugar for .val
     //    a = getchar()
     //    b = a
@@ -717,6 +750,11 @@ void _load_from_file(char *filename, bool is_label_pass) {
         add_label(pos, name);
     } else if (is_label_pass) {
       // do nothing; we're just looking for labels with positions defined
+    } else if (starts_with(line, ".putchar")) {
+      u32 val = read_value(line + sizeof(".putchar") - 1);
+      ENSURE_NEXT_POS;
+      last_pos = force_putchar(next_pos, val);
+      next_pos = NO_NEXT_POS;
     } else if (starts_with(line, ".forceA")) {
       if (next_pos != NO_NEXT_POS)
         SADGE("Can't force A with next pos fixed");
@@ -736,9 +774,7 @@ void _load_from_file(char *filename, bool is_label_pass) {
       } else {
         val = mnemonic_value(line);
       }
-      if (next_pos == NO_NEXT_POS) {
-        next_pos = last_pos + 1;
-      }
+      ENSURE_NEXT_POS;
       ms_smart(next_pos, val);
       last_pos = next_pos;
       next_pos = NO_NEXT_POS;
@@ -758,6 +794,10 @@ void cat_nonterminating() { load_from_file("cat-non-terminating.s"); }
 void cat_terminating() { load_from_file("cat-terminating.s"); }
 
 void fizzbuzz() { load_from_file("fizzbuzz.s"); }
+
+void hi() { load_from_file("hi.s"); }
+
+void hello_world() { load_from_file("hello_world.s"); }
 
 int main() {
   build_cache();
