@@ -461,7 +461,9 @@ bool rangeIsOpen(u32 start, u32 end) {
  * ms(setIdx, setValue)
  **/
 void initMemset(u32 setIdx, u32 setValue) {
-  printf("initMemset(0x%08X, 0x%08X);\n", setIdx, setValue);
+  printf("initMemset(0x%08X, 0x%08X)\n", setIdx, setValue);
+  if (setValue == 0)
+    SADGE("initMemset(idx, 0) unsupported")
   // End goal:
   // at idx1: a = inverseP^{i - idx1 + 2 + stepsFrom(b1, setValue)}(setIdx)
   // at i-1: a = inverseP^{2 + stepsFrom(b1, setValue)}(setIdx)
@@ -708,10 +710,13 @@ void _load_from_file(char *filename, bool is_label_pass) {
       if (cnt == 2) {
         if (!is_label_pass && !pad_ok)
           SADGE("Can't force position if not pad_ok")
+        next_pos = pos;
       } else if (cnt == 1) {
+        // TODO: this might sometimes be off by one?
+        // Keep a char *pending_label and only add_label when deciding the
+        // actual position, but this would break the label pass / forward refs
         pos = last_pos + pad_ok + 1;
       }
-      next_pos = pos;
       if (!is_label_pass || cnt == 2)
         add_label(pos, name);
     } else if (is_label_pass) {
