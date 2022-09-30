@@ -1,3 +1,4 @@
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -39,7 +40,9 @@ u32 inverseP(u32 x) {
   }
 
 /** input = input as bytes, mem = main memory, s = length(mem) */
-u32 *filled, *input, *mem, s;
+// TODO: filled → bool. Causes problems for some reason.
+bool *filled;
+u32 *input, *mem, s;
 /** gw: ensure mem is at least length a+1, filling in mem with 0s */
 void gw(u32 a) {
   if (__builtin_expect(a >= s, 0)) {
@@ -47,9 +50,9 @@ void gw(u32 a) {
     s = a + 1;
     if (a > 0x100000)
       SADGE("Too Long");
-    mem = realloc(mem, s * sizeof(u32));
-    input = realloc(input, s * sizeof(u32));
-    filled = realloc(filled, s * sizeof(u32));
+    mem = realloc(mem, s * sizeof(*mem));
+    input = realloc(input, s * sizeof(*input));
+    filled = realloc(filled, s * sizeof(*filled));
     for (; i < s; i++) {
       mem[i] = 0;
       input[i] = 0;
@@ -298,10 +301,6 @@ void force_a_value_from_struct(TsfavCacheData data) {
 void force_a_value_inner(u32 idx, u32 value) {
   u32 searchIdx = idx;
   u32 searchValue = value;
-  for (u32 i = idx; i >= idx - 21; i--) {
-    if (filled[i])
-      SADGE("Already filled in, at force_a_value")
-  }
   TsfavCacheData *data = find_in_cache(idx, value);
   if (data != NULL) {
     force_a_value_from_struct(*data);
@@ -450,12 +449,12 @@ u32 inversePn(u32 end, u32 n) {
   return end;
 }
 
-u32 rangeIsOpen(u32 start, u32 end) {
+bool rangeIsOpen(u32 start, u32 end) {
   for (u32 i = start; i <= end; i++) {
     if (filled[i])
-      return 0;
+      return false;
   }
-  return 1;
+  return true;
 }
 
 /**
@@ -529,26 +528,40 @@ void prep_labels() { labelsFile = fopen("labels", "w"); }
 typedef struct Label {
   u32 pos;
   char *name;
+  bool is_from_label_pass;
 } Label;
 Label *labels;
 u32 num_labels = 0;
 
+#define LABEL_NOT_DEFINED (-1)
+
+Label *get_label(char *name) {
+  for (u32 i = 0; i < num_labels; i++) {
+    if (strcmp(labels[i].name, name) == 0) {
+      return &(labels[i]);
+    }
+  }
+  return NULL;
+}
+
+u32 get_label_pos(char *name) {
+  Label *label = get_label(name);
+  if (label == NULL) {
+    fprintf(stderr, "Undefined label: %s\n", name);
+    exit(1);
+  }
+  return label->pos;
+}
+
 void add_label(u32 idx, char *name) {
-  printf("New label: %s: 0x%08X\n", name, idx);
+  if (get_label(name) != NULL) {
+    // Assume this is just a label defined from the label pass
+    return;
+  }
   labels = realloc(labels, ++num_labels * sizeof(*labels));
   labels[num_labels - 1] = (Label){idx, name};
   fprintf(labelsFile, "0x%08X %s\n", idx, name);
   fflush(labelsFile);
-}
-
-u32 get_label_pos(char *name) {
-  for (u32 i = 0; i < num_labels; i++) {
-    if (strcmp(labels[i].name, name) == 0) {
-      return labels[i].pos;
-    }
-  }
-  fprintf(stderr, "Undefined label: %s\n", name);
-  exit(1);
 }
 
 void fizzbuzz() {
@@ -644,7 +657,7 @@ Mnemonic mnemonics[] = {
     {0xC0, "a = b - c"},
     {0xD0, "putchar(a)"},
     {0xE0, "a = getchar()"},
-    {0xF0, "exit"},
+    {0xF0, "exit(0)"},
 };
 
 u32 mnemonic_value(char *s) {
@@ -656,12 +669,12 @@ u32 mnemonic_value(char *s) {
   exit(1);
 }
 
-u32 is_label(char *line) {
+bool is_label(char *line) {
   for (; *line; line++) {
     if (*line == ':')
-      return 1;
+      return true;
   }
-  return 0;
+  return false;
 }
 
 void remove_trailing_colon(char *name) {
@@ -677,7 +690,7 @@ void advance_past_spaces(char **s_ptr) {
   }
 }
 
-u32 starts_with(char *s, char *prefix) {
+bool starts_with(char *s, char *prefix) {
   return strncmp(prefix, s, strlen(prefix)) == 0;
 }
 
@@ -713,7 +726,13 @@ void my_getline(FILE *in, char **line) {
   }
 }
 
-void load_from_file(char *filename) {
+/**
+ * Go through the file and parse
+ * If is_label_pass: just set labels with fixed values, for the purpose
+ *  of forward references.
+ * Otherwise: Do everything
+ */
+void _load_from_file(char *filename, bool is_label_pass) {
   FILE *file = fopen(filename, "r");
   u32 pad_ok = 1;
   // The last filled in pos, or the one after that if pad_ok
@@ -751,13 +770,16 @@ void load_from_file(char *filename) {
         SADGE("Input error");
       remove_trailing_colon(name);
       if (cnt == 2) {
-        if (!pad_ok)
+        if (!is_label_pass && !pad_ok)
           SADGE("Can't force position if not pad_ok")
       } else if (cnt == 1) {
         pos = last_pos + pad_ok + 1;
       }
       next_pos = pos;
-      add_label(pos, name);
+      if (!is_label_pass || cnt == 2)
+        add_label(pos, name);
+    } else if (is_label_pass) {
+      // do nothing; we're just looking for labels with positions defined
     } else if (starts_with(line, ".pad_ok")) {
       pad_ok = 1;
       next_pos = NO_NEXT_POS;
@@ -766,8 +788,8 @@ void load_from_file(char *filename) {
         SADGE("Can't force A without padding");
       u32 val = read_value(line + sizeof(".forceA") - 1);
       // 30 is plenty of padding. Could probably easily go down to 25
-      force_a_value(last_pos + 29, val);
-      last_pos += 30;
+      force_a_value(last_pos + 32, val);
+      last_pos += 33;
       pad_ok = 0;
       next_pos = NO_NEXT_POS;
     } else if (starts_with(line, ".trash")) {
@@ -795,26 +817,20 @@ void load_from_file(char *filename) {
     }
   }
   free(line_malloc);
-  emit_from_mem();
 }
 
-void cat_terminating() {
-  u32 p = 0x4a00;
-  ms_simple(p, 0x1F);           // b = P(p+1)^0xFF;
-  ms_simple(p + 2, 0xE0);       // a = getchar();
-  initMemset(p + 3, 0x4F);      // if (a <= b) ip =
-  ms_simple(p + 4, p + 8);      // p + 8;
-  ms_simple(p + 6, 0xF0);       // exit(0)
-  ms_simple(p + 8, 0xD0);       // putchar(a)
-  force_a_value(p + 40, p - 1); // p+40: a = p-1
-  ms_simple(p + 42, 0xA0);      // p+42: a = p-1; ip = a;
+void load_from_file(char *s) {
+  _load_from_file(s, true);
+  _load_from_file(s, false);
   emit_from_mem();
 }
 
 void cat_nonterminating() { load_from_file("cat-non-terminating.s"); }
 
+void cat_terminating() { load_from_file("cat-terminating.s"); }
+
 int main() {
   build_cache();
   prep_labels();
-  cat_nonterminating();
+  cat_terminating();
 }

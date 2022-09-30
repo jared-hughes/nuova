@@ -1,5 +1,5 @@
 // cat terminating
-p: 0x4a00
+p: 0x4A00
   b =
     .trash
   a = getchar()
@@ -11,7 +11,7 @@ p: 0x4a00
 
 .pad_ok
 
-not_eof:
+not_eof: 0x4A08
   putchar(a)
 
   .pad_ok
