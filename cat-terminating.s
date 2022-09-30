@@ -3,17 +3,15 @@ p: 0x4A00
   b =
     .trash
   a = getchar()
-  if (a <= b) ip =; else PPP
+  if (a <= b) ip =
     .val &not_eof
 
-  .pad_ok
+  .trash
   exit(0)
 
-.pad_ok
-
+.trash
 not_eof: 0x4A08
   putchar(a)
 
-  .pad_ok
   .forceA &p
   ip = a

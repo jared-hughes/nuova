@@ -1,14 +1,13 @@
 p: 0xE0000
   b = a
-  .pad_ok
+  .trash
   c = a
-  .pad_ok
+  .trash
   a = b - c
-  .pad_ok
+  .trash
   c = a
 
-.pad_ok
-
+.trash
 getc:
   a = getchar()
   b =
@@ -17,8 +16,8 @@ getc:
     .val &cplus
 
 // if (num_lines-- <= 0) jmp exit
+.trash
 dec_num_lines:
-  .trash
   b =
   num_lines:
     .trash
@@ -36,13 +35,13 @@ dec_num_lines:
   if (b <= c) ip =
     .val &exit
 
-.pad_ok
+.trash
 test_putchar_loop:
   a =
     .val 0x61
   putchar(a)
 
-  .pad_ok
+  .trash
   ip =
     .val &dec_num_lines
 
@@ -74,11 +73,11 @@ test_putchar_loop:
 @ // print "\n"; do_decimal = .trash; jmp dec_num_lines
 @ endline:
 
-.pad_ok
+.trash
 exit: 0xF0000
   exit(0)
 
-.pad_ok
+.trash
 // cplus: do c = 10 * c + (a - '0')
 cplus: 0xF00F0
   // BEGIN a = 10*c + a

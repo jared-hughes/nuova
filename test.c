@@ -671,8 +671,7 @@ void my_getline(FILE *in, char **line) {
  */
 void _load_from_file(char *filename, bool is_label_pass) {
   FILE *file = fopen(filename, "r");
-  u32 pad_ok = 1;
-  // The last filled in pos, or the one after that if pad_ok
+  // The last filled in pos
   u32 last_pos = 0;
   // The next position, as dictated by label or something
   u32 next_pos = NO_NEXT_POS;
@@ -687,10 +686,9 @@ void _load_from_file(char *filename, bool is_label_pass) {
     // label, label with pos
     //    p:
     //    p: 0x4a00
-    // .pad_ok --> says its ok to put PPPs in here
-    // .forceA [value] --> has to be preceded by .pad_ok
+    // .forceA [value]
     // .trash --> any value really
-    // .val [value] --> precisely that value. best if preceded by .pad_ok
+    // .val [value] --> precisely that value. golfs if preceded by .trash
     // mnemonic --> sugar for .val
     //    a = getchar()
     //    b = a
@@ -708,33 +706,27 @@ void _load_from_file(char *filename, bool is_label_pass) {
         SADGE("Input error");
       remove_trailing_colon(name);
       if (cnt == 2) {
-        if (!is_label_pass && !pad_ok)
-          SADGE("Can't force position if not pad_ok")
         next_pos = pos;
       } else if (cnt == 1) {
         // TODO: this might sometimes be off by one?
         // Keep a char *pending_label and only add_label when deciding the
         // actual position, but this would break the label pass / forward refs
-        pos = last_pos + pad_ok + 1;
+        pos = last_pos + 1;
       }
       if (!is_label_pass || cnt == 2)
         add_label(pos, name);
     } else if (is_label_pass) {
       // do nothing; we're just looking for labels with positions defined
-    } else if (starts_with(line, ".pad_ok")) {
-      pad_ok = 1;
-      next_pos = NO_NEXT_POS;
     } else if (starts_with(line, ".forceA")) {
-      if (!pad_ok || next_pos != NO_NEXT_POS)
-        SADGE("Can't force A without padding");
+      if (next_pos != NO_NEXT_POS)
+        SADGE("Can't force A with next pos fixed");
       u32 val = read_value(line + sizeof(".forceA") - 1);
       // 30 is plenty of padding. Could probably easily go down to 25
       force_a_value(last_pos + 32, val);
       last_pos += 33;
-      pad_ok = 0;
       next_pos = NO_NEXT_POS;
     } else if (starts_with(line, ".trash")) {
-      if (pad_ok || next_pos != NO_NEXT_POS)
+      if (next_pos != NO_NEXT_POS)
         SADGE("Unexpected constraints on .trash")
       last_pos += 1;
     } else {
@@ -745,16 +737,11 @@ void _load_from_file(char *filename, bool is_label_pass) {
         val = mnemonic_value(line);
       }
       if (next_pos == NO_NEXT_POS) {
-        if (pad_ok && !can_ms_simple(last_pos + 1, val)) {
-          next_pos = last_pos + 2;
-        } else {
-          next_pos = last_pos + 1;
-        }
+        next_pos = last_pos + 1;
       }
       ms_smart(next_pos, val);
       last_pos = next_pos;
       next_pos = NO_NEXT_POS;
-      pad_ok = 0;
     }
   }
   free(line_malloc);
