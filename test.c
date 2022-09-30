@@ -564,71 +564,6 @@ void add_label(u32 idx, char *name) {
   fflush(labelsFile);
 }
 
-void fizzbuzz() {
-  //    c = 0
-  // getc:
-  //    a = getchar();
-  //    if (a != EOF) [polluting a]
-  //      ip = cplus;
-  //    else PPP
-  // print:
-  //    c = mg(num_lines)
-  //    exit(0) // actual fizzbuzz printing will go here
-  // cplus:
-  //    c = 10*c + a - 48 [polluting a,b]
-  //    ms(num_lines, c)
-  //    ip = c10
-
-  u32 p = 0xF0000;
-  u32 num_lines = p - 20;
-  u32 getc = p + 10;
-  u32 print = getc + 5;
-  u32 cplus = print + 100;
-  // p: c = 0
-  add_label(p, "p");
-  ms_simple(p, 0x60);     // P(); b = a;
-  ms_simple(p + 2, 0x70); // P(); c = a;
-  ms_simple(p + 4, 0xC0); // P(); a = b - c
-  ms_simple(p + 6, 0x70); // P(); c = a
-
-  // getc: a = getchar(); if (a != EOF) ip = c10; else PPP
-  add_label(getc, "getc");
-  ms_smart(getc, 0xE0);     // a = getchar();
-  ms_smart(getc + 1, 0x1F); // b = P(getc + 2) ^ 0xFF
-  // note skip here for the imm of prev
-  ms_smart(getc + 3, 0x4F);  // if (a <= b) ip =
-  ms_smart(getc + 4, cplus); // cplus; else PPP
-
-  // print: exit(0)
-  add_label(print, "print");
-  ms_smart(print, 0xF0); // exit(0)
-
-  // cplus:
-  // c = 10*c + a - '0';
-  add_label(cplus, "cplus");
-  for (u32 i = 0; i < 10; i++) {
-    ms_smart(cplus + 2 * i, 0x60);     // b = a
-    ms_smart(cplus + 2 * i + 1, 0xB0); // a = b + c
-  }
-  ms_smart(cplus + 20, 0x60); // b = a;
-  ms_smart(cplus + 21, 0x2F); // c =
-  ms_smart(cplus + 22, 48);   // 48 = '0';
-  ms_smart(cplus + 23, 0xC0); // a = b - c;
-  ms_smart(cplus + 24, 0x70); // c = a;
-  // ms(num_lines, c);
-  ms_smart(cplus + 25, 0x0F);      // a=
-  ms_smart(cplus + 26, num_lines); // num_lines
-  ms_smart(cplus + 27, 0x40);      // ms(a, c)
-  // ip = getc
-  ms_smart(cplus + 28, 0x3F); // ip =
-  ms_smart(cplus + 29, getc); // c10
-
-  // remove later
-  pushExit();
-
-  emit_from_mem();
-}
-
 typedef struct Mnemonic {
   u32 value;
   char *name;
@@ -639,8 +574,8 @@ Mnemonic mnemonics[] = {
     {0x1F, "b ="},
     {0x2F, "c ="},
     {0x3F, "ip ="},
-    {0x4F, "if (a <= b) ip =; else PPP"},
-    {0x5F, "if (b <= c) ip =; else PPP"},
+    {0x4F, "if (a <= b) ip ="},
+    {0x5F, "if (b <= c) ip ="},
     {0x6F, "a = sse(...)"},
     {0x00, "ms(ip, a)"},
     {0x10, "ms(ip, b)"},
@@ -759,7 +694,8 @@ void _load_from_file(char *filename, bool is_label_pass) {
     //    b = a
     advance_past_spaces(&line);
     // printf("Line: %s\n", line);
-    if (*line == '\0' || starts_with(line, "//") || starts_with(line, ";")) {
+    if (*line == '\0' || *line == ';' || *line == '@' ||
+        starts_with(line, "//")) {
       // comment or empty line, do nothing
     } else if (is_label(line)) {
       char *label;
@@ -829,8 +765,10 @@ void cat_nonterminating() { load_from_file("cat-non-terminating.s"); }
 
 void cat_terminating() { load_from_file("cat-terminating.s"); }
 
+void fizzbuzz() { load_from_file("fizzbuzz.s"); }
+
 int main() {
   build_cache();
   prep_labels();
-  cat_terminating();
+  fizzbuzz();
 }
