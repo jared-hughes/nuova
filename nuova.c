@@ -130,7 +130,7 @@ int main(int argc, char *argv[]) {
   FILE *labelsFile = fopen("labels", "r");
   while (!feof(labelsFile)) {
     Label s;
-    u32 cnt = fscanf(labelsFile, "0x%08X %ms", &(s.pos), &(s.name));
+    u32 cnt = fscanf(labelsFile, " 0x%08X %ms", &(s.pos), &(s.name));
     if (cnt == 2) {
       labels = realloc(labels, ++num_labels * sizeof(*labels));
       labels[num_labels - 1] = s;
@@ -138,6 +138,7 @@ int main(int argc, char *argv[]) {
       break;
     }
   }
+  fprintf(stderr, "Loaded %d labels\n", num_labels);
   fclose(labelsFile);
   FILE *in = fopen(argv[1], "rb");
   u32 idx = 0;
@@ -170,7 +171,7 @@ int main(int argc, char *argv[]) {
     u32 v = mg(ip);
     char *mn = mnemonic(v);
     if (*mn != 'P') {
-      fprintf(stderr, "%08X: ", ip - 1);
+      fprintf(stderr, "%08X: ", ip);
       fprintf(stderr, "mg(ip+1)=%08X; ", mg(ip));
       fprintf(stderr, "a=%08X; b=%08X; c=%08X; ", a, b, c);
       fprintf(stderr, (v >> 8) ? "0x%08X: " : "0x%02X: ", v);
