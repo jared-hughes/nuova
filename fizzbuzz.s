@@ -1,9 +1,5 @@
 p: 0xE0000
-  b = a
-  .trash
-  c = a
-  .trash
-  a = b - c
+  .zero_a
   .trash
   c = a
 
@@ -32,22 +28,45 @@ dec_num_lines:
 
   c =
     .val 0xFFFFFFFF
-  if (b <= c) ip =
+  if (b >= c) ip =
     .val &exit
 
+// if (++d0 <= 9) jmp inc x3
 .trash
-test_putchar_loop:
+inc_d0: 0xE0100
+  b =
+  d0_a:
+    .val 0x0
+  c =
+    .val 0x01
+  a = b + c
+  c = a
   a =
-    .val 0x61
-  putchar(a)
-
+    .val &d0_a
+  ms(a, c)
+  a =
+    .val &d0_b
+  ms(a, c)
+  b =
+    .val 0x9
+  if (b >= c) ip =
+    .val &inc_d_done
+// fallthrough to clear this digit and increment next
+// d0 = 0
+clear_d0:
+  .zero_a
   .trash
-  ip =
-    .val &dec_num_lines
+  b = a
+  .trash
+  a =
+    .val &d0_a
+  ms(a, b)
+  a =
+    .val &d0_b
+  ms(a, b)
 
-
-@ // if (++d0 <= 9) jmp inc x3
-@ inc_d0:
+inc_d_done: 0xE0200
+  .trash
 
 @ // if (++d1 <= 9) jmp inc x3
 @ inc_d1:
@@ -70,8 +89,26 @@ test_putchar_loop:
 @ // print(d3 d2 d1 d0) without leading 0s
 @ print_decimal:
 
-@ // print "\n"; do_decimal = .trash; jmp dec_num_lines
-@ endline:
+// print(d0)
+.trash
+print_d0: 0xE0800
+  b =
+  d0_b: 0xE0801
+    .val 0x0
+  c =
+    .val '0'
+  a = b + c
+  putchar(a)
+  
+
+// print "\n"; do_decimal = .trash; jmp dec_num_lines
+.trash
+endline: 0xE105D
+  .putchar 0x0A
+  // TODO do_decimal = .trash
+  .trash
+  ip =
+    .val &dec_num_lines
 
 .trash
 exit: 0xF0000
@@ -104,8 +141,7 @@ cplus: 0xF00F0
   // END
   b = a
   c =
-    // '0'
-    .val 0x30
+    .val '0'
   a = b - c
   c = a
 

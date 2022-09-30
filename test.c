@@ -105,6 +105,7 @@ void ms_simple(u32 idx, u32 v) {
 }
 
 u32 can_ms_simple(u32 idx, u32 v) {
+  gw(idx);
   return !filled[idx - 1] || (v ^ P(idx)) >> 8 == 0;
 }
 
@@ -485,13 +486,66 @@ bool rangeIsOpen(u32 start, u32 end) {
   return true;
 }
 
+/* Zeroes a. Returns the last set position */
+u32 zero_a(u32 pos) {
+  ms_simple_inner(pos, 0x60);     // b = a
+  ms_simple_inner(pos + 2, 0x70); // c = a
+  ms_simple_inner(pos + 4, 0xC0); // a = b - c
+  return pos + 4;
+}
+
+/**
+ * ms(setIdx, 0);
+ */
+void initMemsetZero(u32 setIdx) {
+  printf("initMemsetZero(0x%08X)\n", setIdx);
+  // .zero_a // zero_a from i to i+4
+  // c = a  // at i+6
+  // b = B ^ P() // b = b1 = B ^ P(i+9)
+  // a = b // a = B ^ P(i+9)
+  // padding
+  // ms(a, c) // imm before: a = setIdx = P^{stepsFrom(b1, setIdx)}(b1)
+
+  Set inverses = inverses_set(setIdx);
+  for (u32 i = 1;; i++) {
+    for (u32 B = 0; B < 256; B++) {
+      if (B & 0x0F == 0x0F)
+        continue;
+      u32 b1 = B ^ P(i + 9);
+      if (set_has_value(&inverses, b1)) {
+        u32 endpt = i + 11 + stepsFrom(b1, setIdx);
+        fprintf(stderr, "i = 0x%08X; endpt = 0x%08X (ms 0)\n", i, endpt);
+        // check clean
+        gw(endpt);
+        if (!rangeIsOpen(i, endpt)) {
+          fprintf(stderr, "nonempty\n");
+          continue;
+        }
+        fprintf(
+            stderr,
+            "\n--- 0x%08X'ish to 0x%08X: initMemsetZero(0x%08X, 0x%08X)\n\n",
+            i - 8, endpt, setIdx, 0);
+        zero_a(i);                            // a = 0
+        ms_simple_inner(i + 6, 0x70);         // c = a
+        ms_simple_inner(i + 8, 0x1F);         // b =
+        ms_simple_inner(i + 9, B ^ P(i + 9)); // B ^ P(i + 9);
+        ms_simple_inner(i + 11, 0x80);        // a = b
+        padding(i + 12, endpt - 2);
+        ms_simple_inner(endpt, 0x40); // ms(a, c)
+        return;
+      }
+    no_work:
+    }
+  }
+}
+
 /**
  * ms(setIdx, setValue)
- **/
+ */
 void initMemset(u32 setIdx, u32 setValue) {
-  printf("initMemset(0x%08X, 0x%08X)\n", setIdx, setValue);
   if (setValue == 0)
-    SADGE("initMemset(idx, 0) unsupported")
+    return initMemsetZero(setIdx);
+  printf("initMemset(0x%08X, 0x%08X)\n", setIdx, setValue);
   // End goal:
   // at idx1: a = inverseP^{i - idx1 + 2 + stepsFrom(b1, setValue)}(setIdx)
   // at i-1: a = inverseP^{2 + stepsFrom(b1, setValue)}(setIdx)
@@ -601,7 +655,7 @@ Mnemonic mnemonics[] = {
     {0x2F, "c ="},
     {0x3F, "ip ="},
     {0x4F, "if (a <= b) ip ="},
-    {0x5F, "if (b <= c) ip ="},
+    {0x5F, "if (b >= c) ip ="},
     {0x6F, "a = sse(...)"},
     {0x00, "ms(ip, a)"},
     {0x10, "ms(ip, b)"},
@@ -720,8 +774,9 @@ void _load_from_file(char *filename, bool is_label_pass) {
     //    p: 0x4a00
     // .forceA [value]
     // .trash --> any value really
+    // .zero_a --> PPP; a = 0
     // .val [value] --> precisely that value. golfs if preceded by .trash
-    // .putchar [value] --> putchars that value mod 256; PPP
+    // .putchar [value] --> PPP; putchar(value & 255)
     // mnemonic --> sugar for .val
     //    a = getchar()
     //    b = a
@@ -750,6 +805,13 @@ void _load_from_file(char *filename, bool is_label_pass) {
         add_label(pos, name);
     } else if (is_label_pass) {
       // do nothing; we're just looking for labels with positions defined
+    } else if (starts_with(line, ".zero_a")) {
+      ENSURE_NEXT_POS;
+      if (!can_ms_simple(next_pos, 0x60))
+        ++next_pos;
+      printf("zero_a(%08X)\n", next_pos);
+      last_pos = zero_a(next_pos);
+      next_pos = NO_NEXT_POS;
     } else if (starts_with(line, ".putchar")) {
       u32 val = read_value(line + sizeof(".putchar") - 1);
       ENSURE_NEXT_POS;
@@ -764,9 +826,12 @@ void _load_from_file(char *filename, bool is_label_pass) {
       last_pos += 33;
       next_pos = NO_NEXT_POS;
     } else if (starts_with(line, ".trash")) {
-      if (next_pos != NO_NEXT_POS)
-        SADGE("Unexpected constraints on .trash")
-      last_pos += 1;
+      if (next_pos != NO_NEXT_POS) {
+        last_pos = next_pos;
+        next_pos = NO_NEXT_POS;
+      } else {
+        last_pos += 1;
+      }
     } else {
       u32 val;
       if (starts_with(line, ".val")) {
@@ -793,11 +858,11 @@ void cat_nonterminating() { load_from_file("cat-non-terminating.s"); }
 
 void cat_terminating() { load_from_file("cat-terminating.s"); }
 
-void fizzbuzz() { load_from_file("fizzbuzz.s"); }
-
 void hi() { load_from_file("hi.s"); }
 
 void hello_world() { load_from_file("hello_world.s"); }
+
+void fizzbuzz() { load_from_file("fizzbuzz.s"); }
 
 int main() {
   build_cache();
