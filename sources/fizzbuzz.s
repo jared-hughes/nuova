@@ -51,7 +51,7 @@ dec_num_lines:
 glue(inc_,di): addr;
   b =;
   glue(di,_a):;
-    .val 0x0;
+    .val '0';
   c =;
     .val 0x01;
   a = b + c;
@@ -59,16 +59,14 @@ glue(inc_,di): addr;
   MS_c(&glue(di,_a));
   MS_c(&glue(di,_b));
   b =;
-    .val 0x9;
+    .val '9';
   if (b >= c) ip =;
     .val &inc_d_done
 
 #define CLEAR_D(di) \
 glue(clear_,di):;
-  .zero_a;
-  .trash;
-  b = a;
-  .trash;
+  b =;
+    .val '0';
   MS_b(&glue(di,_a));
   MS_b(&glue(di,_b));
 
@@ -152,12 +150,9 @@ check_decimal: 0xE0800
 #define PRINT_D(di, addr, addr_plus_one) \
 .trash;
 glue(print_,di): addr;
-  b =;
+  a =;
   glue(di,_b): addr_plus_one;
-    .val 0x0;
-  c =;
     .val '0';
-  a = b + c;
   putchar(a)
 
 PRINT_D(d3, 0xE0B00, 0xE0B01)
@@ -213,5 +208,4 @@ get_next_char:
   ip =
     .val &getc
 
-// golfing idea: store 5 as '5' instead, so wraparound '9' to '0'
 // another idea: use cells (array) to avoid duplicating inc & print code.
