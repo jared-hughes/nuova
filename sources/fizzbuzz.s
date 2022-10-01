@@ -114,31 +114,24 @@ endline: 0xE105D
 exit: 0xF0000
   exit(0)
 
+#define a_plus_equals_c \
+  b = a;
+  a = b + c
+
 .trash
 // cplus: do c = 10 * c + (a - '0')
 cplus: 0xF00F0
-  // BEGIN a = 10*c + a
-  b = a
-  a = b + c
-  b = a
-  a = b + c
-  b = a
-  a = b + c
-  b = a
-  a = b + c
-  b = a
-  a = b + c
-  b = a
-  a = b + c
-  b = a
-  a = b + c
-  b = a
-  a = b + c
-  b = a
-  a = b + c
-  b = a
-  a = b + c
-  // END
+  a_plus_equals_c
+  a_plus_equals_c
+  a_plus_equals_c
+  a_plus_equals_c
+  a_plus_equals_c
+  a_plus_equals_c
+  a_plus_equals_c
+  a_plus_equals_c
+  a_plus_equals_c
+  a_plus_equals_c
+  
   b = a
   c =
     .val '0'

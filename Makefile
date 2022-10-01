@@ -11,7 +11,14 @@ bin/nuova: nuova.c
 	gcc nuova.c -g -o bin/nuova
 
 run-compiler: bin/compiler
-	./bin/compiler $(file) 2> logs/compiler.log
+	cat sources/$(prog).s \
+		| awk '{gsub(";", ";\\"); print}' \
+		> cache/$(prog).c
+	gcc -E cache/$(prog).c \
+		| grep -v "#" \
+		| awk '{gsub(";", "\n "); print}' \
+		> cache/$(prog).s
+	./bin/compiler cache/$(prog).s 2> logs/compiler.log
 
 bin/compiler: compiler.c
 	gcc compiler.c -g -O3 -o bin/compiler
