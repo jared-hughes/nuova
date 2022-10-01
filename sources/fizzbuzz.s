@@ -80,20 +80,74 @@ INC_D(d2, 0xE0300) // if (++d2 <= 9) jmp inc x3
 CLEAR_D(d2) // fallthrough; d2 = 0
 INC_D(d3, 0xE0400) // if (++d3 <= 9) jmp inc x3
 
-inc_d_done: 0xE0600
+inc_d_done: 0xE0500
   .trash
 
-@ // if (++x3 <= 2) jmp inc x5; else { print "Fizz"; x3=0; do_decimal=0; }
-@ inc_x3:
+// if (++x3 <= 2) jmp inc_x5; else { print "Fizz"; x3=0; do_decimal=0; }
+inc_x3: 0xE0600
+  b =
+  x3:
+    .val 0x0
+  c =
+    .val 0x1
+  a = b + c
+  c = a
+  MS_c(&x3)
+  b =
+    .val 0x2
+  if (b >= c) ip =
+    .val &inc_x5
+fizz:
+  .zero_a
+  .trash
+  c = a
+  .trash
+  MS_c(&x3)
+  .trash
+  MS_c(&do_decimal)
+  .putchar 'F'
+  .putchar 'i'
+  .putchar 'z'
+  .putchar 'z'
 
-@ // if (++x5 <= 4) jmp check_decimal; else { print "Buzz"; }
-@ inc_x5:
+// if (++x5 <= 4) jmp check_decimal; else { print "Buzz"; }
+inc_x5: 0xE0700
+  b =
+  x5:
+    .val 0x0
+  c =
+    .val 0x1
+  a = b + c
+  c = a
+  MS_c(&x5)
+  b =
+    .val 0x4
+  if (b >= c) ip =
+    .val &check_decimal
+buzz:
+  .zero_a
+  .trash
+  c = a
+  .trash
+  MS_c(&x5)
+  .putchar 'B'
+  .putchar 'u'
+  .putchar 'z'
+  .putchar 'z'
+  ip =
+    .val &endline
 
-@ // if (do_decimal <= 0) jmp endline
-@ check_decimal:
+// if (do_decimal <= 0) jmp endline
+check_decimal: 0xE0800
+  a =
+  do_decimal: 0xE0801
+    .trash
+  b =
+    .val 0x0
+  if (a <= b) ip =
+    .val &endline
 
-@ // print(d3 d2 d1 d0) without leading 0s
-@ print_decimal:
+// print(d3 d2 d1 d0) without leading 0s
 
 #define PRINT_D(di, addr, addr_plus_one) \
 .trash;
@@ -106,17 +160,20 @@ glue(print_,di): addr;
   a = b + c;
   putchar(a)
 
-PRINT_D(d3, 0xE0800, 0xE0801)
-PRINT_D(d2, 0xE0900, 0xE0901)
-PRINT_D(d1, 0xE0A00, 0xE0A01)
-PRINT_D(d0, 0xE0B00, 0xE0B01)
+PRINT_D(d3, 0xE0B00, 0xE0B01)
+PRINT_D(d2, 0xE0C00, 0xE0C01)
+PRINT_D(d1, 0xE0D00, 0xE0D01)
+PRINT_D(d0, 0xE0E00, 0xE0E01)
   
 
 // print "\n"; do_decimal = .trash; jmp dec_num_lines
 .trash
 endline: 0xE105D
   .putchar 0x0A
-  // TODO do_decimal = .trash
+  .trash
+  c =
+    .trash
+  MS_c(&do_decimal)
   .trash
   ip =
     .val &dec_num_lines
