@@ -12,7 +12,7 @@
     .val addr;
   ms(a, b)
 
-p: 0xE0000
+p: 0x60000
   .zero_a
   .trash
   c = a
@@ -73,19 +73,19 @@ glue(clear_,di):;
   MS_b(&glue(di,_a));
   MS_b(&glue(di,_b));
 
-INC_D(d0, 0xE0100) // if (++d0 <= 9) jmp inc x3
+INC_D(d0, 0x60100) // if (++d0 <= 9) jmp inc x3
 CLEAR_D(d0) // fallthrough; d0 = 0
-INC_D(d1, 0xE0200) // if (++d1 <= 9) jmp inc x3
+INC_D(d1, 0x60200) // if (++d1 <= 9) jmp inc x3
 CLEAR_D(d1) // fallthrough; d1 = 0
-INC_D(d2, 0xE0300) // if (++d2 <= 9) jmp inc x3
+INC_D(d2, 0x60300) // if (++d2 <= 9) jmp inc x3
 CLEAR_D(d2) // fallthrough; d2 = 0
-INC_D(d3, 0xE0400) // if (++d3 <= 9) jmp inc x3
+INC_D(d3, 0x60400) // if (++d3 <= 9) jmp inc x3
 
-inc_d_done: 0xE0500
+inc_d_done: 0x60500
   .trash
 
 // if (++x3 <= 2) jmp inc_x5; else { print "Fizz"; x3=0; do_decimal=0; }
-inc_x3: 0xE0600
+inc_x3: 0x60600
   b =
   x3:
     .val 0x0
@@ -112,7 +112,7 @@ fizz:
   .putchar 'z'
 
 // if (++x5 <= 4) jmp check_decimal; else { print "Buzz"; }
-inc_x5: 0xE0700
+inc_x5: 0x60700
   b =
   x5:
     .val 0x0
@@ -139,9 +139,9 @@ buzz:
     .val &endline
 
 // if (do_decimal <= 0) jmp endline
-check_decimal: 0xE0800
+check_decimal: 0x60800
   a =
-  do_decimal: 0xE0801
+  do_decimal: 0x60801
     .trash
   b =
     .val 0x0
@@ -170,15 +170,15 @@ glue(read_filled,di): addr_plus_nine;
     .val '0';
   putchar(a)
 
-PRINT_D(d3, print_d2, 0xE0B00, 0xE0B09, 0xE0B0A, 0xE0B10)
-PRINT_D(d2, print_d1, 0xE0C00, 0xE0C09, 0xE0C0A, 0xE0C10)
-PRINT_D(d1, print_d0, 0xE0D00, 0xE0D09, 0xE0D0A, 0xE0D10)
-PRINT_D(d0, endline, 0xE0E00, 0xE0E09, 0xE0E0A, 0xE0E10)
+PRINT_D(d3, print_d2, 0x60B00, 0x60B09, 0x60B0A, 0x60B10)
+PRINT_D(d2, print_d1, 0x60C00, 0x60C09, 0x60C0A, 0x60C10)
+PRINT_D(d1, print_d0, 0x60D00, 0x60D09, 0x60D0A, 0x60D10)
+PRINT_D(d0, endline, 0x60E00, 0x60E09, 0x60E0A, 0x60E10)
   
 
 // print "\n"; do_decimal = .trash; jmp dec_num_lines
 .trash
-endline: 0xE105D
+endline: 0x6105D
   .putchar 0x0A
   .trash
   c =
@@ -189,7 +189,7 @@ endline: 0xE105D
     .val &dec_num_lines
 
 .trash
-exit: 0xF0000
+exit: 0x61100
   exit(0)
 
 #define a_plus_equals_c \
@@ -198,7 +198,7 @@ exit: 0xF0000
 
 .trash
 // cplus: do c = 10 * c + (a - '0')
-cplus: 0xF00F0
+cplus: 0x611F0
   a_plus_equals_c
   a_plus_equals_c
   a_plus_equals_c
