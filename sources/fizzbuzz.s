@@ -59,6 +59,9 @@ glue(inc_,di): addr;
   MS_c(&glue(di,_a));
   MS_c(&glue(di,_b));
   b =;
+    .trash;
+  MS_b(&glue(di,_filled));
+  b =;
     .val '9';
   if (b >= c) ip =;
     .val &inc_d_done
@@ -147,18 +150,30 @@ check_decimal: 0xE0800
 
 // print(d3 d2 d1 d0) without leading 0s
 
-#define PRINT_D(di, addr, addr_plus_one) \
+#define PRINT_D(di, no_print_label, addr, addr_plus_nine, addr_plus_ten, addr_plus_0x10) \
 .trash;
 glue(print_,di): addr;
+  .zero_a;
+  .trash;
+  b = a;
+  .trash;
+glue(read_filled,di): addr_plus_nine;
   a =;
-  glue(di,_b): addr_plus_one;
+  glue(di,_filled): addr_plus_ten;
+    .val 0x0;
+  .trash;
+  if (a <= b) ip =;
+    .val &no_print_label;
+  .trash;
+  a =;
+  glue(di,_b): addr_plus_0x10;
     .val '0';
   putchar(a)
 
-PRINT_D(d3, 0xE0B00, 0xE0B01)
-PRINT_D(d2, 0xE0C00, 0xE0C01)
-PRINT_D(d1, 0xE0D00, 0xE0D01)
-PRINT_D(d0, 0xE0E00, 0xE0E01)
+PRINT_D(d3, print_d2, 0xE0B00, 0xE0B09, 0xE0B0A, 0xE0B10)
+PRINT_D(d2, print_d1, 0xE0C00, 0xE0C09, 0xE0C0A, 0xE0C10)
+PRINT_D(d1, print_d0, 0xE0D00, 0xE0D09, 0xE0D0A, 0xE0D10)
+PRINT_D(d0, endline, 0xE0E00, 0xE0E09, 0xE0E0A, 0xE0E10)
   
 
 // print "\n"; do_decimal = .trash; jmp dec_num_lines
