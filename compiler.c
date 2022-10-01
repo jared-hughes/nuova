@@ -123,7 +123,7 @@ void padding(u32 start, u32 end) {
 
 void emit_from_mem() {
   printf("Emitting!\n");
-  FILE *out = fopen("prog", "wb");
+  FILE *out = fopen("bin/prog", "wb");
   u32 prev_f = 0;
   u32 bytes = 0;
   for (u32 i = 0; i < s; i++) {
@@ -212,7 +212,7 @@ void add_to_cache(TsfavCacheData data) {
     fprintf(stderr, "Cache file is null, so not appending to disk\n");
 }
 
-#define CACHE_FILE "tsfav_cache"
+#define CACHE_FILE "cache/tsfav"
 
 void build_cache() {
   TsfavCacheData data;
@@ -603,7 +603,7 @@ void ms_smart(u32 idx, u32 v) {
 
 FILE *labelsFile;
 
-void prep_labels() { labelsFile = fopen("labels", "w"); }
+void prep_labels() { labelsFile = fopen("bin/labels", "w"); }
 
 typedef struct Label {
   u32 pos;
@@ -864,8 +864,11 @@ void hello_world() { load_from_file("hello_world.s"); }
 
 void fizzbuzz() { load_from_file("fizzbuzz.s"); }
 
-int main() {
+int main(int argc, char *argv[]) {
+  if (argc != 2)
+    SADGE("Expect exactly one argument (input program), e.g"
+          " ./test sources/hello_world.s")
   build_cache();
   prep_labels();
-  fizzbuzz();
+  load_from_file(argv[1]);
 }

@@ -275,7 +275,7 @@ import sys
 sys.exit(0)
 
 try:
-    prog = open("prog", "wb")
+    prog = open("bin/prog", "wb")
     idx = 0
     T(lambda: set_a(0x30))
     exit()

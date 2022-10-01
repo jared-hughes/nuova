@@ -1,7 +1,3 @@
-nuova
-prog
-raw-nuova
-test
-*.log
-tsfav_cache
-labels
+logs
+bin
+cache

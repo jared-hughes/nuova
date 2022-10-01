@@ -1,17 +1,17 @@
-run-raw-nuova: raw-nuova
-	./raw-nuova prog
+run-raw-nuova: bin/raw-nuova bin/prog
+	./bin/raw-nuova bin/prog
 
-raw-nuova:
-	gcc raw-nuova.c -O3 -o raw-nuova
+bin/raw-nuova:
+	gcc raw-nuova.c -O3 -o bin/raw-nuova
 
-run-nuova: nuova
-	./nuova prog 2> nuova.log
+run-nuova: bin/nuova bin/prog
+	./bin/nuova bin/prog 2> logs/nuova.log
 
-nuova: nuova.c
-	gcc nuova.c -g -o nuova
+bin/nuova: nuova.c
+	gcc nuova.c -g -o bin/nuova
 
-run-test: test
-	./test 2> test.log
+run-compiler: bin/compiler
+	./bin/compiler $(file) 2> logs/compiler.log
 
-test: test.c
-	gcc test.c -g -O3 -o test
+bin/compiler: compiler.c
+	gcc compiler.c -g -O3 -o bin/compiler

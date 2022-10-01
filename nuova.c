@@ -127,7 +127,7 @@ int main(int argc, char *argv[]) {
   for (int i = 0; i < 256; i++)
     for (int j = 0; j < 65; j++)
       t[i * 65 + j] = i == 0 ? j << 10 : t[j];
-  FILE *labelsFile = fopen("labels", "r");
+  FILE *labelsFile = fopen("bin/labels", "r");
   while (!feof(labelsFile)) {
     Label s;
     u32 cnt = fscanf(labelsFile, " 0x%08X %ms", &(s.pos), &(s.name));
