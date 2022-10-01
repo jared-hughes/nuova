@@ -72,7 +72,7 @@ void ms_simple_inner(u32 idx, u32 v) {
     if (idx == 0) {
       SADGE("Can't 4-byter at beginning")
     } else if (filled[idx - 1]) {
-      if ((input[idx - 1] & 0xF) != 0xF)
+      if ((input[idx - 1] >> 8 > 0) || (input[idx - 1] & 0xF) != 0xF)
         SADGE("Not F, can't fill x4")
     } else {
       filled[idx - 1] = 1;
@@ -233,6 +233,14 @@ void build_cache() {
   cacheFile = fopen(CACHE_FILE, "ab");
 }
 
+bool rangeIsOpen(u32 start, u32 end) {
+  for (u32 i = start; i <= end; i++) {
+    if (filled[i])
+      return false;
+  }
+  return true;
+}
+
 /**
  * Set the value of `a` to `value` at idx + 21.
  * Requires writing spawn mem from idx to idx + 21 inclusive
@@ -240,6 +248,8 @@ void build_cache() {
  **/
 TsfavCacheData try_set_force_a_value(u32 searchIdx, u32 idx, u32 searchValue,
                                      u32 value) {
+  if (!rangeIsOpen(idx, idx + 21))
+    return (TsfavCacheData){0, 0, 0, 0, 0, 0, 0};
   for (u32 A = 0; A < 256; A++) {
     if ((A & 0xF) == 0xF)
       continue;
@@ -478,14 +488,6 @@ u32 inversePn(u32 end, u32 n) {
   return end;
 }
 
-bool rangeIsOpen(u32 start, u32 end) {
-  for (u32 i = start; i <= end; i++) {
-    if (filled[i])
-      return false;
-  }
-  return true;
-}
-
 /* Zeroes a. Returns the last set position */
 u32 zero_a(u32 pos) {
   ms_simple_inner(pos, 0x60);     // b = a
@@ -570,7 +572,7 @@ void initMemset(u32 setIdx, u32 setValue) {
         fprintf(stderr, "i = 0x%08X; endpt = 0x%08X\n", i, endpt);
         // check clean
         gw(endpt);
-        if (!rangeIsOpen(i - 22, endpt)) {
+        if (!rangeIsOpen(i - 25, endpt)) {
           fprintf(stderr, "nonempty\n");
           continue;
         }

@@ -178,7 +178,7 @@ int main(int argc, char *argv[]) {
     char *mn = mnemonic(v);
     if (*mn != 'P') {
       fprintf(stderr, "%08X: ", ip);
-      fprintf(stderr, "mg(ip+1)=%08X; ", mg(ip));
+      fprintf(stderr, "mg(ip+1)=%08X; ", mg(ip + 1));
       fprintf(stderr, "a=%08X; b=%08X; c=%08X; ", a, b, c);
       fprintf(stderr, (v >> 8) ? "0x%08X: " : "0x%02X: ", v);
       fprintf(stderr, "%s\n", mnemonic(v));
