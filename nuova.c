@@ -46,9 +46,15 @@ void ms(u32 a, u32 v) {
   mem[a] = v;
 }
 
+char *name(u32 pos);
+
 void ms_log(u32 a, u32 v) {
   ms(a, v);
-  fprintf(stderr, "ms(%08X, %08X)\n", a, v);
+  char *n = name(a);
+  if (n == NULL)
+    fprintf(stderr, "ms(0x%08X, 0x%08X)\n", a, v);
+  else
+    fprintf(stderr, "ms(0x%08X (%s), 0x%08X)\n", a, n, v);
 }
 /** t = secondary memory,
  * ai = address into this memory (always increases but overflow) */
@@ -167,7 +173,7 @@ int main(int argc, char *argv[]) {
   // a,b,c registers; a is special
   u32 a = 0x66, b = 0xF0, c = 0x0F, ip = 0;
 
-  for (u32 i = 0xFFFFF; i--;) {
+  for (u32 i = 0xFFFFFFF; i--;) {
     u32 v = mg(ip);
     char *mn = mnemonic(v);
     if (*mn != 'P') {
