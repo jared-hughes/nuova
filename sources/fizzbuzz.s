@@ -1,3 +1,17 @@
+#define glue2(x,y) x##y
+#define glue(x,y) glue2(x,y)
+#define glue3(x,y,z) glue(glue(x,y),z)
+
+#define MS_c(addr) \
+  a =;
+    .val addr;
+  ms(a, c)
+
+#define MS_b(addr) \
+  a =;
+    .val addr;
+  ms(a, b)
+
 p: 0xE0000
   .zero_a
   .trash
@@ -22,6 +36,7 @@ dec_num_lines:
   a = b - c
   b = a
   
+  // for some reason, MS_b(&num_lines) doesn't work here
   a =
     .val &num_lines
   ms(a, b)
@@ -30,10 +45,6 @@ dec_num_lines:
     .val 0xFFFFFFFF
   if (b >= c) ip =
     .val &exit
-
-#define glue2(x,y) x##y
-#define glue(x,y) glue2(x,y)
-#define glue3(x,y,z) glue(glue(x,y),z)
 
 #define INC_D(di, addr) \
 .trash;
@@ -45,12 +56,8 @@ glue(inc_,di): addr;
     .val 0x01;
   a = b + c;
   c = a;
-  a =;
-    .val &glue(di,_a);
-  ms(a, c);
-  a =;
-    .val &glue(di,_b);
-  ms(a, c);
+  MS_c(&glue(di,_a));
+  MS_c(&glue(di,_b));
   b =;
     .val 0x9;
   if (b >= c) ip =;
@@ -62,12 +69,8 @@ glue(clear_,di):;
   .trash;
   b = a;
   .trash;
-  a =;
-    .val &glue(di,_a);
-  ms(a, b);
-  a =;
-    .val &glue(di,_b);
-  ms(a, b)
+  MS_b(&glue(di,_a));
+  MS_b(&glue(di,_b));
 
 INC_D(d0, 0xE0100) // if (++d0 <= 9) jmp inc x3
 CLEAR_D(d0) // fallthrough; d0 = 0
@@ -147,9 +150,7 @@ cplus: 0xF00F0
   c = a
 
 ms_num_lines:
-  a =
-    .val &num_lines
-  ms(a, c)
+  MS_c(&num_lines)
 
 get_next_char:
   ip =
