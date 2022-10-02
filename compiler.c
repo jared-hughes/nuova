@@ -1,12 +1,4 @@
-#include <stdbool.h>
-#include <stdint.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-
-typedef uint32_t u32;
-
-#define LEN(X) (sizeof((X)) / sizeof(*(X)))
+#include "./compiler.h"
 
 u32 P(u32 x) {
   x ^= x >> 17;
@@ -33,25 +25,14 @@ u32 inverseP(u32 x) {
   return x;
 }
 
-// #define log(...) fprintf(stderr, __VA_ARGS__)
-#define log(...) ;
-
-/** input = input as bytes, mem = main memory, s = length(mem) */
-bool *filled;
-u32 *input, *mem, s;
-
 void finish(int status) {
   free(filled);
   free(input);
   free(mem);
+  fclose(labelsFile);
+  fclose(cacheFile);
   exit(status);
 }
-
-#define SADGE(s)                                                               \
-  {                                                                            \
-    printf(s "\n");                                                            \
-    finish(1);                                                                 \
-  }
 
 /** gw: ensure mem is at least length a+1, filling in mem with 0s */
 void gw(u32 a) {
@@ -110,6 +91,7 @@ u32 padding_char(u32 idx) {
     }
   }
 }
+
 void ms_simple(u32 idx, u32 v) {
   printf("ms_simple(0x%08X, 0x%08X)\n", idx, v);
   ms_simple_inner(idx, v);
@@ -157,31 +139,11 @@ void emit_from_mem() {
   printf("Bytes: %d\n", bytes);
 }
 
-FILE *cacheFile;
-
-typedef struct TsfavCacheData {
-  u32 searchIdx;
-  u32 resolvedIdx;
-  u32 value;
-  u32 A;
-  u32 B;
-  u32 C;
-  u32 D;
-} TsfavCacheData;
-
 void printData(TsfavCacheData data) {
   log("{0x%08X, 0x%08X, 0x%08X, 0x%08X, 0x%08X, 0x%08X, 0x%08X}",
       data.searchIdx, data.resolvedIdx, data.value, data.A, data.B, data.C,
       data.D);
 }
-
-typedef struct TsfavCacheNode {
-  TsfavCacheData data;
-  struct TsfavCacheNode *next;
-} TsfavCacheNode;
-
-TsfavCacheNode *tsfavHead;
-TsfavCacheNode *tsfavTail;
 
 TsfavCacheData *find_in_cache(u32 searchIdx, u32 value) {
   TsfavCacheNode *node = tsfavHead;
@@ -222,8 +184,6 @@ void add_to_cache(TsfavCacheData data) {
   } else
     log("Cache file is null, so not appending to disk\n");
 }
-
-#define CACHE_FILE "cache/tsfav"
 
 void build_cache() {
   TsfavCacheData data;
@@ -345,6 +305,7 @@ void force_a_value_inner(u32 idx, u32 value) {
     value = inverseP(value);
   }
 }
+
 void force_a_value(u32 idx, u32 value) {
   printf("0x%08X: .forceA 0x%08X\n", idx, value);
   force_a_value_inner(idx, value);
@@ -373,14 +334,6 @@ u32 force_putchar(u32 idx, u32 value) {
     }
   }
 }
-
-#define SETSZ (1 << 18)
-#define MINLOOKUP (1 << 11)
-// value in set if thing[value % n % SETSZ] == value
-typedef struct Set {
-  u32 n;
-  u32 thing[SETSZ];
-} Set;
 
 // SETSZ (1 << 18)
 // MINLOOKUP (1 << 11)
@@ -599,11 +552,6 @@ void initMemset(u32 setIdx, u32 setValue) {
   }
 }
 
-void pushExit() {
-  printf("Push exit\n");
-  ms_simple_inner(s + 1, 0xF0);
-}
-
 void ms_smart(u32 idx, u32 v) {
   gw(idx);
   if (can_ms_simple(idx, v))
@@ -611,19 +559,7 @@ void ms_smart(u32 idx, u32 v) {
   return initMemset(idx, v);
 }
 
-FILE *labelsFile;
-
 void prep_labels() { labelsFile = fopen("bin/labels", "w"); }
-
-typedef struct Label {
-  u32 pos;
-  char *name;
-  bool is_from_label_pass;
-} Label;
-Label *labels;
-u32 num_labels = 0;
-
-#define LABEL_NOT_DEFINED (-1)
 
 Label *get_label(char *name) {
   for (u32 i = 0; i < num_labels; i++) {
@@ -653,11 +589,6 @@ void add_label(u32 idx, char *name) {
   fprintf(labelsFile, "0x%08X %s\n", idx, name);
   fflush(labelsFile);
 }
-
-typedef struct Mnemonic {
-  u32 value;
-  char *name;
-} Mnemonic;
 
 Mnemonic mnemonics[] = {
     {0x0F, "a ="},
@@ -739,8 +670,6 @@ u32 read_value(char *s) {
   }
   SADGE("Invalid value. Should be &name or 0xAABBCCDD");
 };
-
-#define NO_NEXT_POS (-1)
 
 void my_getline(FILE *in, char **line) {
   u32 len = 0;
@@ -856,6 +785,7 @@ void _load_from_file(char *filename, bool is_label_pass) {
     }
   }
   free(line_malloc);
+  fclose(file);
 }
 
 void load_from_file(char *s) {
@@ -863,16 +793,6 @@ void load_from_file(char *s) {
   _load_from_file(s, false);
   emit_from_mem();
 }
-
-void cat_nonterminating() { load_from_file("cat-non-terminating.s"); }
-
-void cat_terminating() { load_from_file("cat-terminating.s"); }
-
-void hi() { load_from_file("hi.s"); }
-
-void hello_world() { load_from_file("hello_world.s"); }
-
-void fizzbuzz() { load_from_file("fizzbuzz.s"); }
 
 int main(int argc, char *argv[]) {
   if (argc != 2)

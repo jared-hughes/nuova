@@ -20,5 +20,5 @@ run-compiler: bin/compiler
 		> cache/$(prog).s
 	./bin/compiler cache/$(prog).s 2> logs/compiler.log
 
-bin/compiler: compiler.c
+bin/compiler: compiler.c compiler.h
 	gcc compiler.c -g -O3 -o bin/compiler
