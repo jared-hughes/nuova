@@ -39,6 +39,8 @@ u32 inverseP(u32 x) {
     exit(1);                                                                   \
   }
 
+#define log(...) fprintf(stderr, __VA_ARGS__)
+
 /** input = input as bytes, mem = main memory, s = length(mem) */
 // TODO: filled → bool. Causes problems for some reason.
 bool *filled;
@@ -64,7 +66,7 @@ void gw(u32 a) {
 void ms_simple_inner(u32 idx, u32 v) {
   gw(idx);
   if (filled[idx]) {
-    fprintf(stderr, "Already filled, at %08X\n", idx);
+    log("Already filled, at %08X\n", idx);
     exit(1);
   }
   u32 xor = v ^ P(idx);
@@ -159,9 +161,9 @@ typedef struct TsfavCacheData {
 } TsfavCacheData;
 
 void printData(TsfavCacheData data) {
-  fprintf(stderr, "{0x%08X, 0x%08X, 0x%08X, 0x%08X, 0x%08X, 0x%08X, 0x%08X}",
-          data.searchIdx, data.resolvedIdx, data.value, data.A, data.B, data.C,
-          data.D);
+  log("{0x%08X, 0x%08X, 0x%08X, 0x%08X, 0x%08X, 0x%08X, 0x%08X}",
+      data.searchIdx, data.resolvedIdx, data.value, data.A, data.B, data.C,
+      data.D);
 }
 
 typedef struct TsfavCacheNode {
@@ -176,9 +178,9 @@ TsfavCacheData *find_in_cache(u32 searchIdx, u32 value) {
   TsfavCacheNode *node = tsfavHead;
   while (node != NULL) {
     if (node->data.searchIdx == searchIdx && node->data.value == value) {
-      fprintf(stderr, "Found in cache: ");
+      log("Found in cache: ");
       printData(node->data);
-      fprintf(stderr, "\n");
+      log("\n");
       return &(node->data);
     }
     node = node->next;
@@ -187,9 +189,9 @@ TsfavCacheData *find_in_cache(u32 searchIdx, u32 value) {
 }
 
 void add_to_mem_cache(TsfavCacheData data) {
-  // fprintf(stderr, "Adding to cache: ");
+  // log("Adding to cache: ");
   // printData(data);
-  // fprintf(stderr, "\n");
+  // log("\n");
   TsfavCacheNode *node = malloc(sizeof(TsfavCacheNode));
   node->data = data;
   node->next = NULL;
@@ -205,11 +207,11 @@ void add_to_mem_cache(TsfavCacheData data) {
 void add_to_cache(TsfavCacheData data) {
   add_to_mem_cache(data);
   if (cacheFile != NULL) {
-    // fprintf(stderr, "Writing to file\n");
+    // log("Writing to file\n");
     fwrite(&data, sizeof(TsfavCacheData), 1, cacheFile);
     fflush(cacheFile);
   } else
-    fprintf(stderr, "Cache file is null, so not appending to disk\n");
+    log("Cache file is null, so not appending to disk\n");
 }
 
 #define CACHE_FILE "cache/tsfav"
@@ -321,9 +323,9 @@ void force_a_value_inner(u32 idx, u32 value) {
     force_a_value_from_struct(*data);
     return;
   }
-  fprintf(stderr, "cache miss 0x%08X 0x%08X\n", idx, value);
+  log("cache miss 0x%08X 0x%08X\n", idx, value);
   for (;; idx--) {
-    fprintf(stderr, "Trying idx 0x%08X\n", idx);
+    log("Trying idx 0x%08X\n", idx);
     TsfavCacheData res =
         try_set_force_a_value(searchIdx, idx - 21, searchValue, value);
     if (res.searchIdx > 0) {
@@ -440,7 +442,7 @@ void find_hash_mods() {
 Set inverses_set(u32 value) {
   u32 n;
   if (value > 255) {
-    fprintf(stderr, "Oopsie? value>255 so working hard to find n\n");
+    log("Oopsie? value>255 so working hard to find n\n");
     n = find_hash_mod(value);
   } else {
     n = MODS[value];
@@ -475,7 +477,7 @@ u32 stepsFrom(u32 start, u32 end) {
       return i;
     v = P(v);
     if (v == start) {
-      fprintf(stderr, "No path from 0x%08X to 0x%08X", start, end);
+      log("No path from 0x%08X to 0x%08X", start, end);
       exit(1);
     }
   }
@@ -516,16 +518,14 @@ void initMemsetZero(u32 setIdx) {
       u32 b1 = B ^ P(i + 9);
       if (set_has_value(&inverses, b1)) {
         u32 endpt = i + 11 + stepsFrom(b1, setIdx);
-        fprintf(stderr, "i = 0x%08X; endpt = 0x%08X (ms 0)\n", i, endpt);
+        log("i = 0x%08X; endpt = 0x%08X (ms 0)\n", i, endpt);
         // check clean
         gw(endpt);
         if (!rangeIsOpen(i, endpt)) {
-          fprintf(stderr, "nonempty\n");
+          log("nonempty\n");
           continue;
         }
-        fprintf(
-            stderr,
-            "\n--- 0x%08X'ish to 0x%08X: initMemsetZero(0x%08X, 0x%08X)\n\n",
+        log("\n--- 0x%08X'ish to 0x%08X: initMemsetZero(0x%08X, 0x%08X)\n\n",
             i - 8, endpt, setIdx, 0);
         zero_a(i);                            // a = 0
         ms_simple_inner(i + 6, 0x70);         // c = a
@@ -569,16 +569,15 @@ void initMemset(u32 setIdx, u32 setValue) {
       u32 b1 = B ^ P(i + 2);
       if (set_has_value(&inverses, b1)) {
         u32 endpt = i + 3 + stepsFrom(b1, setValue);
-        fprintf(stderr, "i = 0x%08X; endpt = 0x%08X\n", i, endpt);
+        log("i = 0x%08X; endpt = 0x%08X\n", i, endpt);
         // check clean
         gw(endpt);
         if (!rangeIsOpen(i - 25, endpt)) {
-          fprintf(stderr, "nonempty\n");
+          log("nonempty\n");
           continue;
         }
-        fprintf(stderr,
-                "\n--- 0x%08X'ish to 0x%08X: initMemset(0x%08X, 0x%08X)\n\n",
-                i - 23, endpt, setIdx, setValue);
+        log("\n--- 0x%08X'ish to 0x%08X: initMemset(0x%08X, 0x%08X)\n\n",
+            i - 23, endpt, setIdx, setValue);
         force_a_value_inner(i - 1, inversePn(setIdx, endpt - (i - 1) - 4));
         ms_simple_inner(i + 1, 0x1F);         // b =
         ms_simple_inner(i + 2, B ^ P(i + 2)); // B ^ P(i + 2);
@@ -629,7 +628,7 @@ Label *get_label(char *name) {
 u32 get_label_pos(char *name) {
   Label *label = get_label(name);
   if (label == NULL) {
-    fprintf(stderr, "Undefined label: %s\n", name);
+    log("Undefined label: %s\n", name);
     exit(1);
   }
   return label->pos;

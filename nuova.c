@@ -17,6 +17,8 @@
     b = x;                                                                     \
   }
 
+#define log(...) fprintf(stderr, __VA_ARGS__)
+
 typedef uint32_t u32;
 
 /** mem = main memory, s = length(mem) */
@@ -52,9 +54,9 @@ void ms_log(u32 a, u32 v) {
   ms(a, v);
   char *n = name(a);
   if (n == NULL)
-    fprintf(stderr, "ms(0x%08X, 0x%08X)\n", a, v);
+    log("ms(0x%08X, 0x%08X)\n", a, v);
   else
-    fprintf(stderr, "ms(0x%08X (%s), 0x%08X)\n", a, n, v);
+    log("ms(0x%08X (%s), 0x%08X)\n", a, n, v);
 }
 /** t = secondary memory,
  * ai = address into this memory (always increases but overflow) */
@@ -123,7 +125,7 @@ char *name(u32 pos) {
     ip = (x);                                                                  \
     char *n = name(ip);                                                        \
     if (n != NULL)                                                             \
-      fprintf(stderr, "ip = %08X (%s)\n", ip, n);                              \
+      log("ip = %08X (%s)\n", ip, n);                                          \
   }
 
 #define IP_PP                                                                  \
@@ -144,7 +146,7 @@ int main(int argc, char *argv[]) {
       break;
     }
   }
-  fprintf(stderr, "Loaded %d labels\n", num_labels);
+  log("Loaded %d labels\n", num_labels);
   fclose(labelsFile);
   FILE *in = fopen(argv[1], "rb");
   u32 idx = 0;
@@ -152,7 +154,7 @@ int main(int argc, char *argv[]) {
     uint8_t instr = fgetc(in);
     ms(idx, mg(idx) ^ instr);
     if (instr > 0)
-      fprintf(stderr, "%08X: %08X from %02X\n", idx, mem[idx], instr);
+      log("%08X: %08X from %02X\n", idx, mem[idx], instr);
     idx++;
     if ((instr & 15) == 15) {
       u32 value = 0;
@@ -160,7 +162,7 @@ int main(int argc, char *argv[]) {
       for (int i = 0; i < 4; i++)
         value = (value << 8) | fgetc(in);
       ms(idx, mg(idx) ^ value);
-      fprintf(stderr, "%08X: %08X from %08X\n", idx, mem[idx], value);
+      log("%08X: %08X from %08X\n", idx, mem[idx], value);
       idx++;
     }
   }
@@ -168,7 +170,7 @@ int main(int argc, char *argv[]) {
   // set the last word with complicated formula
   for (u32 i = 1; i < idx; i++)
     ms(idx, mg(idx) ^ sse(mg(i - 1) & 255, mg(i) & 255, pc(mg(i)) & 1));
-  fprintf(stderr, "%08X: %08X from sse\n\n", idx, mem[idx]);
+  log("%08X: %08X from sse\n\n", idx, mem[idx]);
   // the action begins
   // a,b,c registers; a is special
   u32 a = 0x66, b = 0xF0, c = 0x0F, ip = 0;
@@ -177,11 +179,11 @@ int main(int argc, char *argv[]) {
     u32 v = mg(ip);
     char *mn = mnemonic(v);
     if (*mn != 'P') {
-      fprintf(stderr, "%08X: ", ip);
-      fprintf(stderr, "mg(ip+1)=%08X; ", mg(ip + 1));
-      fprintf(stderr, "a=%08X; b=%08X; c=%08X; ", a, b, c);
-      fprintf(stderr, (v >> 8) ? "0x%08X: " : "0x%02X: ", v);
-      fprintf(stderr, "%s\n", mnemonic(v));
+      log("%08X: ", ip);
+      log("mg(ip+1)=%08X; ", mg(ip + 1));
+      log("a=%08X; b=%08X; c=%08X; ", a, b, c);
+      log((v >> 8) ? "0x%08X: " : "0x%02X: ", v);
+      log("%s\n", mnemonic(v));
     }
     IP_PP;
     switch (v) {
@@ -232,11 +234,11 @@ int main(int argc, char *argv[]) {
     case 0xD0:
       putchar(a);
       fflush(stdout);
-      fprintf(stderr, "out %c 0x%02X\n", a, a);
+      log("out %c 0x%02X\n", a, a);
       break;
     case 0xE0:
       a = getchar();
-      fprintf(stderr, "got %c 0x%02X\n", a, a);
+      log("got %c 0x%02X\n", a, a);
       break;
     case 0xF0: return 0;
     default:
