@@ -29,8 +29,15 @@ void finish(int status) {
   free(filled);
   free(input);
   free(mem);
+  free(labels);
+  for (; tsfavHead != NULL;) {
+    TsfavCacheNode *t = tsfavHead;
+    tsfavHead = tsfavHead->next;
+    free(t);
+  }
   fclose(labelsFile);
   fclose(cacheFile);
+  fclose(inputFile);
   exit(status);
 }
 
@@ -695,15 +702,15 @@ void my_getline(FILE *in, char **line) {
  * Otherwise: Do everything
  */
 void _load_from_file(char *filename, bool is_label_pass) {
-  FILE *file = fopen(filename, "r");
+  inputFile = fopen(filename, "r");
   // The last filled in pos
   u32 last_pos = 0;
   // The next position, as dictated by label or something
   u32 next_pos = NO_NEXT_POS;
   char *line_malloc = malloc(10);
-  while (!feof(file)) {
-    my_getline(file, &line_malloc);
-    if (feof(file))
+  while (!feof(inputFile)) {
+    my_getline(inputFile, &line_malloc);
+    if (feof(inputFile))
       break;
     char *line = line_malloc;
     // Line options:
@@ -785,7 +792,6 @@ void _load_from_file(char *filename, bool is_label_pass) {
     }
   }
   free(line_malloc);
-  fclose(file);
 }
 
 void load_from_file(char *s) {

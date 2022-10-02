@@ -8,7 +8,8 @@ typedef uint32_t u32;
 
 #define LEN(X) (sizeof((X)) / sizeof(*(X)))
 
-#define log(...) fprintf(stderr, __VA_ARGS__)
+// #define log(...) fprintf(stderr, __VA_ARGS__)
+#define log(...) ;
 
 /** input = input as bytes, mem = main memory, s = length(mem) */
 bool *filled;
@@ -70,3 +71,5 @@ typedef struct Mnemonic {
 } Mnemonic;
 
 #define NO_NEXT_POS (-1)
+
+FILE *inputFile;
