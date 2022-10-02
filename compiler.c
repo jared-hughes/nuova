@@ -33,18 +33,26 @@ u32 inverseP(u32 x) {
   return x;
 }
 
+// #define log(...) fprintf(stderr, __VA_ARGS__)
+#define log(...) ;
+
+/** input = input as bytes, mem = main memory, s = length(mem) */
+bool *filled;
+u32 *input, *mem, s;
+
+void finish(int status) {
+  free(filled);
+  free(input);
+  free(mem);
+  exit(status);
+}
+
 #define SADGE(s)                                                               \
   {                                                                            \
     printf(s "\n");                                                            \
-    exit(1);                                                                   \
+    finish(1);                                                                 \
   }
 
-#define log(...) fprintf(stderr, __VA_ARGS__)
-
-/** input = input as bytes, mem = main memory, s = length(mem) */
-// TODO: filled → bool. Causes problems for some reason.
-bool *filled;
-u32 *input, *mem, s;
 /** gw: ensure mem is at least length a+1, filling in mem with 0s */
 void gw(u32 a) {
   if (__builtin_expect(a >= s, 0)) {
@@ -62,12 +70,13 @@ void gw(u32 a) {
     }
   }
 }
+
 /** mem set: set mem[idx] <- v at initial load, ensuring length at least idx+1*/
 void ms_simple_inner(u32 idx, u32 v) {
   gw(idx);
   if (filled[idx]) {
     log("Already filled, at %08X\n", idx);
-    exit(1);
+    finish(1);
   }
   u32 xor = v ^ P(idx);
   if (xor >> 8) {
@@ -409,7 +418,7 @@ u32 MODS[] = {
 };
 
 u32 find_hash_mod(u32 value) {
-  u32 round[SETSZ];
+  u32 round[SETSZ] = {0};
   for (u32 n = SETSZ;; n++) {
     u32 v = value;
     for (u32 i = 0;; i++, v = inverseP(v)) {
@@ -458,7 +467,7 @@ Set inverses_set(u32 value) {
         return s;
       } else {
         printf("Invalid mod %d for value 0x%08X", n, value);
-        exit(1);
+        finish(1);
       }
     }
     s.thing[key] = v;
@@ -478,7 +487,7 @@ u32 stepsFrom(u32 start, u32 end) {
     v = P(v);
     if (v == start) {
       log("No path from 0x%08X to 0x%08X", start, end);
-      exit(1);
+      finish(1);
     }
   }
 }
@@ -629,7 +638,7 @@ u32 get_label_pos(char *name) {
   Label *label = get_label(name);
   if (label == NULL) {
     log("Undefined label: %s\n", name);
-    exit(1);
+    finish(1);
   }
   return label->pos;
 }
@@ -682,7 +691,7 @@ u32 mnemonic_value(char *s) {
       return mnemonics[i].value;
   }
   printf("Mnemonic not found: %s\n", s);
-  exit(1);
+  finish(1);
 }
 
 bool is_label(char *line) {
@@ -872,4 +881,5 @@ int main(int argc, char *argv[]) {
   build_cache();
   prep_labels();
   load_from_file(argv[1]);
+  finish(0);
 }
