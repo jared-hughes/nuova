@@ -657,7 +657,7 @@ bool starts_with(char *s, char *prefix) {
   return strncmp(prefix, s, strlen(prefix)) == 0;
 }
 
-u32 read_value(char *s) {
+u32 read_raw_value(char *s) {
   advance_past_spaces(&s);
   if (*s == '\0') {
     SADGE("Empty string value");
@@ -672,11 +672,35 @@ u32 read_value(char *s) {
     u32 val;
     u32 cnt = sscanf(s, "%x", &val);
     if (cnt != 1)
-      SADGE("Invalid literal");
+      SADGE("Invalid hex literal");
+    return val;
+  } else if ('0' <= *s && *s <= '9') {
+    u32 val;
+    u32 cnt = sscanf(s, "%d", &val);
+    if (cnt != 1)
+      SADGE("Invalid decimal literal");
     return val;
   }
-  SADGE("Invalid value. Should be &name or 0xAABBCCDD");
+  log("Invalid value: %s\n", s);
+  finish(1);
 };
+
+u32 read_value(char *s) {
+  char *left, *right;
+  if (sscanf(s, "%ms + %ms", &left, &right) == 2) {
+    u32 val = read_raw_value(left) + read_raw_value(right);
+    free(left);
+    free(right);
+    return val;
+  } else if (sscanf(s, "%ms - %ms", &left, &right) == 2) {
+    u32 val = read_raw_value(left) - read_raw_value(right);
+    free(left);
+    free(right);
+    return val;
+  } else {
+    return read_raw_value(s);
+  }
+}
 
 void my_getline(FILE *in, char **line) {
   u32 len = 0;
