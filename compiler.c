@@ -640,6 +640,14 @@ bool is_label(char *line) {
   return false;
 }
 
+bool has_non_space(char *s) {
+  for (; *s; s++) {
+    if (*s != ' ')
+      return true;
+  }
+  return false;
+}
+
 void remove_trailing_colon(char *name) {
   for (; *name; ++name) {
     if (*name == ':')
@@ -686,6 +694,7 @@ u32 read_raw_value(char *s) {
 };
 
 u32 read_value(char *s) {
+  advance_past_spaces(&s);
   char *left, *right;
   if (sscanf(s, "%ms + %ms", &left, &right) == 2) {
     u32 val = read_raw_value(left) + read_raw_value(right);
@@ -756,22 +765,21 @@ void _load_from_file(char *filename, bool is_label_pass) {
         starts_with(line, "//")) {
       // comment or empty line, do nothing
     } else if (is_label(line)) {
-      char *label;
-      char *name;
+      char *colon = strchr(line, ':');
+      *colon = '\0';
+      char *name = malloc(strlen(line) + 1);
+      strcpy(name, line);
       u32 pos;
-      u32 cnt = sscanf(line, "%ms %x", &name, &pos);
-      if (cnt == 0)
-        SADGE("Input error");
-      remove_trailing_colon(name);
-      if (cnt == 2) {
-        next_pos = pos;
-      } else if (cnt == 1) {
+      bool isAbsolutePositioned = has_non_space(colon + 1);
+      if (isAbsolutePositioned) {
+        pos = next_pos = read_value(colon + 1);
+      } else {
         // TODO: this might sometimes be off by one?
         // Keep a char *pending_label and only add_label when deciding the
         // actual position, but this would break the label pass / forward refs
         pos = last_pos + 1;
       }
-      if (!is_label_pass || cnt == 2)
+      if (!is_label_pass || isAbsolutePositioned)
         add_label(pos, name);
     } else if (is_label_pass) {
       // do nothing; we're just looking for labels with positions defined

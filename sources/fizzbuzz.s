@@ -150,30 +150,30 @@ check_decimal: 0x60800
 
 // print(d3 d2 d1 d0) without leading 0s
 
-#define PRINT_D(di, no_print_label, addr, addr_plus_nine, addr_plus_ten, addr_plus_0x10) \
+#define PRINT_D(di, no_print_label, addr) \
 .trash;
 glue(print_,di): addr;
   .zero_a;
   .trash;
   b = a;
   .trash;
-glue(read_filled,di): addr_plus_nine;
+glue(read_filled,di): addr + 9;
   a =;
-  glue(di,_filled): addr_plus_ten;
+  glue(di,_filled): addr + 10;
     .val 0x0;
   .trash;
   if (a <= b) ip =;
     .val &no_print_label;
   .trash;
   a =;
-  glue(di,_b): addr_plus_0x10;
+  glue(di,_b): addr + 16;
     .val '0';
   putchar(a)
 
-PRINT_D(d3, print_d2, 0x60B00, 0x60B09, 0x60B0A, 0x60B10)
-PRINT_D(d2, print_d1, 0x60C00, 0x60C09, 0x60C0A, 0x60C10)
-PRINT_D(d1, print_d0, 0x60D00, 0x60D09, 0x60D0A, 0x60D10)
-PRINT_D(d0, endline, 0x60E00, 0x60E09, 0x60E0A, 0x60E10)
+PRINT_D(d3, print_d2, 0x60B00)
+PRINT_D(d2, print_d1, 0x60C00)
+PRINT_D(d1, print_d0, 0x60D00)
+PRINT_D(d0, endline, 0x60E00)
   
 
 // print "\n"; do_decimal = .trash; jmp dec_num_lines
