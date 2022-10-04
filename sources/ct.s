@@ -126,7 +126,7 @@ parse_data: 0xE5000
   .trash
   // finish parsing, start exec
   ip =
-    .val &start
+    .val &done_parsing
 
 pd_leq_1: 0xE5100
   b =
@@ -150,6 +150,7 @@ pd_leq_0: 0xE5200
 pdone: 0xF0000
   b_eq_global(head, pdone_ret)
 pdone_ret: 0xF0010
+  a = b
   ip = a
 
 d0: 0xF0100
@@ -160,7 +161,7 @@ d0: 0xF0100
 
 d1: 0xF0200
   b =
-    .val 0
+    .val 1
   ip =
     .val &do_db
 
@@ -198,7 +199,7 @@ p0: 0xF0600
     .val &goto_inc_curr
 
 p1: 0xF0700
-  PUT_AT(tail, d0, 0xF0720)
+  PUT_AT(tail, d1, 0xF0720)
   // fallthrough to goto_inc_curr
 
 goto_inc_curr: 0xF0800
@@ -208,7 +209,9 @@ goto_inc_curr_ret: 0xF0820
     .val 2
   a = b + c
   b = a
+  c = a
   global_eq_b(curr)
+  a = c
   ip = a
 
 preturn: 0xF0900
@@ -219,6 +222,9 @@ preturn: 0xF0900
   ip = a
 
 // === data block ===
+
+done_parsing: 0xFFFFE
+  .trash
 
 start: 0x100000
   .trash

@@ -139,7 +139,7 @@ char *name(u32 pos) {
     ip = (x);                                                                  \
     char *n = name(ip);                                                        \
     if (n != NULL)                                                             \
-      log("ip = %08X (%s)\n", ip, n);                                          \
+      log("ip = 0x%08X (%s)\n", ip, n);                                          \
   }
 
 #define IP_PP                                                                  \
@@ -168,7 +168,7 @@ int main(int argc, char *argv[]) {
     uint8_t instr = fgetc(in);
     ms(idx, mg(idx) ^ instr);
     if (instr > 0)
-      log("%08X: %08X from %02X\n", idx, mem[idx], instr);
+      log("0x%08X: 0x%08X from 0x%02X\n", idx, mem[idx], instr);
     idx++;
     if ((instr & 15) == 15) {
       u32 value = 0;
@@ -176,7 +176,7 @@ int main(int argc, char *argv[]) {
       for (int i = 0; i < 4; i++)
         value = (value << 8) | fgetc(in);
       ms(idx, mg(idx) ^ value);
-      log("%08X: %08X from %08X\n", idx, mem[idx], value);
+      log("0x%08X: 0x%08X from 0x%08X\n", idx, mem[idx], value);
       idx++;
     }
   }
@@ -184,7 +184,7 @@ int main(int argc, char *argv[]) {
   // set the last word with complicated formula
   for (u32 i = 1; i < idx; i++)
     ms(idx, mg(idx) ^ sse(mg(i - 1) & 255, mg(i) & 255, pc(mg(i)) & 1));
-  log("%08X: %08X from sse\n\n", idx, mem[idx]);
+  log("0x%08X: 0x%08X from sse\n\n", idx, mem[idx]);
   // the action begins
   // a,b,c registers; a is special
   u32 a = 0x66, b = 0xF0, c = 0x0F, ip = 0;
@@ -193,9 +193,9 @@ int main(int argc, char *argv[]) {
     u32 v = mg(ip);
     char *mn = mnemonic(v);
     if (*mn != 'P') {
-      log("%08X: ", ip);
-      log("mg(ip+1)=%08X; ", mg(ip + 1));
-      log("a=%08X; b=%08X; c=%08X; ", a, b, c);
+      log("0x%08X: ", ip);
+      log("mg(ip+1)=0x%08X; ", mg(ip + 1));
+      log("a=0x%08X; b=0x%08X; c=0x%08X; ", a, b, c);
       log((v >> 8) ? "0x%08X: " : "0x%02X: ", v);
       log("%s\n", mnemonic(v));
     }
