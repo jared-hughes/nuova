@@ -1,6 +1,5 @@
 #define glue2(x,y) x##y
 #define glue(x,y) glue2(x,y)
-#define glue3(x,y,z) glue(glue(x,y),z)
 
 #define MS_c(addr) \
   a =;

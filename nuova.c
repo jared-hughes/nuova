@@ -29,7 +29,7 @@ void gw(u32 a) {
     u32 i = s;
     s = a + 1;
     mem = realloc(mem, s * sizeof(u32));
-    if (a > 0x100000)
+    if (a > 0x400000)
       exit(1);
     while (i < s) {
       P(i, mem[i]);
@@ -49,14 +49,28 @@ void ms(u32 a, u32 v) {
 }
 
 char *name(u32 pos);
+char *mnemonic(int v);
+
+void log_hex_maybe_label_or_mnemonic(u32 x) {
+  log("0x%08X", x);
+  char *mn = mnemonic(x);
+  if (*mn != 'P') {
+    log(" (%s)", mn);
+  } else {
+    char *n = name(x);
+    if (n != NULL)
+      log(" (%s)", n);
+  }
+}
 
 void ms_log(u32 a, u32 v) {
   ms(a, v);
   char *n = name(a);
-  if (n == NULL)
-    log("ms(0x%08X, 0x%08X)\n", a, v);
-  else
-    log("ms(0x%08X (%s), 0x%08X)\n", a, n, v);
+  log("ms(");
+  log_hex_maybe_label_or_mnemonic(a);
+  log(", ");
+  log_hex_maybe_label_or_mnemonic(v);
+  log(")\n");
 }
 /** t = secondary memory,
  * ai = address into this memory (always increases but overflow) */

@@ -8,8 +8,7 @@ typedef uint32_t u32;
 
 #define LEN(X) (sizeof((X)) / sizeof(*(X)))
 
-// #define log(...) fprintf(stderr, __VA_ARGS__)
-#define log(...) ;
+#define log(...) fprintf(stderr, __VA_ARGS__)
 
 /** input = input as bytes, mem = main memory, s = length(mem) */
 bool *filled;
