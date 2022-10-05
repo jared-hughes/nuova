@@ -139,7 +139,7 @@ char *name(u32 pos) {
     ip = (x);                                                                  \
     char *n = name(ip);                                                        \
     if (n != NULL)                                                             \
-      log("ip = 0x%08X (%s)\n", ip, n);                                          \
+      log("ip = 0x%08X (%s)\n", ip, n);                                        \
   }
 
 #define IP_PP                                                                  \

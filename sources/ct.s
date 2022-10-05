@@ -2,6 +2,7 @@
 
 #define glue2(x,y) x##y
 #define glue(x,y) glue2(x,y)
+#define glue3(x,y,z) glue(glue(x,y),z)
 
 #define global_declare(var, value, pos) \
   glue(var, _b_eq): pos;
@@ -30,10 +31,10 @@
   a = b + c
 
 // PUT "ip =" at pos, ".val &label" at pos+1, and does pos+=2
-#define PUT_AT(pos, label, addr) \
-glue(put_, label): addr;
-  b_eq_global(pos, glue(put_ret_, label));
-glue(put_ret_, label): addr + 0x20;
+#define PUT_AT(suffix, pos, label, addr) \
+glue3(put_, label, suffix): addr;
+  b_eq_global(pos, glue3(put_ret_, label, suffix));
+glue3(put_ret_, label, suffix): addr + 0x20;
   a = b;
   b =;
     .val IP_EQ;
@@ -78,7 +79,7 @@ parse_prod: 0xE3000
     .val '1'
   if (a <= b) ip =
     .val &leq_1
-  PUT_AT(head, preturn, 0xE3020)
+  PUT_AT(_parse_prod1, head, preturn, 0xE3020)
   .trash
   ip =
     .val &init_head
@@ -88,7 +89,7 @@ leq_1: 0xE3100
     .val '0'
   if (a <= b) ip =
     .val &leq_0
-  PUT_AT(head, p1, 0xE3120)
+  PUT_AT(_parse_prod2, head, p1, 0xE3120)
   .trash
   ip =
     .val &parse_prod
@@ -98,14 +99,14 @@ leq_0: 0xE3200
     .val '"'
   if (a <= b) ip =
     .val &leq_quote
-  PUT_AT(head, p0, 0xE3220)
+  PUT_AT(_parse_prod3, head, p0, 0xE3220)
   .trash
   ip =
     .val &parse_prod
 
 leq_quote: 0xE3300
   .trash
-  PUT_AT(head, pdone, 0xE3320)
+  PUT_AT(_parse_prod4, head, pdone, 0xE3320)
   .trash
   ip =
     .val &parse_prod
@@ -133,14 +134,14 @@ pd_leq_1: 0xE5100
     .val '0'
   if (a <= b) ip =
     .val &pd_leq_0
-  PUT_AT(tail, d1, 0xE5120)
+  PUT_AT(_parse_data1, tail, d1, 0xE5120)
   .trash
   ip =
     .val &parse_data
 
 pd_leq_0: 0xE5200
   .trash
-  PUT_AT(tail, d0, 0xE5220)
+  PUT_AT(_parse_data2, tail, d0, 0xE5220)
   .trash
   ip =
     .val &parse_data
@@ -192,15 +193,26 @@ inc_prod: 0xF0440
   ip =
     .val &goto_inc_curr
 
-p0: 0xF0600
-  PUT_AT(tail, d0, 0xF0620)
-  .trash
-  ip =
+#define pb_(pb, db, pos, pos_plus_0x60) \
+pb: pos;
+  b_eq_global(do_append, glue(pb, _ret));
+glue(pb, _ret): pos + 0x20;
+  a = b;
+  .trash;
+  b =;
+    .val 0;
+  .trash;
+  if (a <= b) ip =;
+    .val &goto_inc_curr;
+glue(pb, _put_d): pos + 0x40;
+  PUT_AT(_runtime, tail, db, pos_plus_0x60);
+  .trash;
+  ip =;
     .val &goto_inc_curr
 
-p1: 0xF0700
-  PUT_AT(tail, d1, 0xF0720)
-  // fallthrough to goto_inc_curr
+pb_(p0, d0, 0xF0600, 0xF0660)
+
+pb_(p1, d1, 0xF0700, 0xF0760)
 
 goto_inc_curr: 0xF0800
   b_eq_global(curr, goto_inc_curr_ret)
