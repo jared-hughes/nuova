@@ -675,6 +675,8 @@ u32 read_raw_value(char *s) {
   advance_past_spaces(&s);
   if (*s == '\0') {
     SADGE("Empty string value");
+  } else if (*s == '`') {
+    return inverseP(read_raw_value(s + 1));
   } else if (*s == '&')
     return get_label_pos(s + 1);
   else if (*s == '\'') {

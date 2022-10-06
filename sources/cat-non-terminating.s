@@ -1,7 +1,9 @@
 // cat non-terminating
-p: 0x4a00
+p: 0x1500
   a = getchar()
   putchar(a)
 
-  .forceA &p
+  .trash
+  .forceA `&p
+  .trash
   ip = a
