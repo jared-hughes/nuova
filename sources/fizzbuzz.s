@@ -60,10 +60,12 @@ glue(inc_,di): addr;
   b =;
     .trash;
   MS_b(&glue(di,_filled));
+
+#define CHECK_9 \
   b =;
     .val '9';
   if (b >= c) ip =;
-    .val &inc_d_done
+    .val &inc_x3
 
 #define CLEAR_D(di) \
 glue(clear_,di):;
@@ -72,16 +74,19 @@ glue(clear_,di):;
   MS_b(&glue(di,_a));
   MS_b(&glue(di,_b));
 
-INC_D(d0, 0x60100) // if (++d0 <= 9) jmp inc x3
+INC_D(d0, 0x60100) // ++d0
+CHECK_9 // if (d0 <= 9) jmp inc x3
 CLEAR_D(d0) // fallthrough; d0 = 0
-INC_D(d1, 0x60200) // if (++d1 <= 9) jmp inc x3
-CLEAR_D(d1) // fallthrough; d1 = 0
-INC_D(d2, 0x60300) // if (++d2 <= 9) jmp inc x3
-CLEAR_D(d2) // fallthrough; d2 = 0
-INC_D(d3, 0x60400) // if (++d3 <= 9) jmp inc x3
 
-inc_d_done: 0x60500
-  .trash
+INC_D(d1, 0x60200) // ++d1
+CHECK_9 // if (d1 <= 9) jmp inc x3
+CLEAR_D(d1) // fallthrough; d1 = 0
+
+INC_D(d2, 0x60300) // ++d2
+CHECK_9 // if (d2 <= 9) jmp inc x3
+CLEAR_D(d2) // fallthrough; d2 = 0
+
+INC_D(d3, 0x60400) // if (++d3 <= 9) jmp inc x3
 
 // if (++x3 <= 2) jmp inc_x5; else { print "Fizz"; x3=0; do_decimal=0; }
 inc_x3: 0x60600

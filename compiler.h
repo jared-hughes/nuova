@@ -10,6 +10,8 @@ typedef uint32_t u32;
 
 #define log(...) fprintf(stderr, __VA_ARGS__)
 
+u32 initMemsetCount = 0, initMemsetZeroCount = 0, msSimpleCount = 0;
+
 /** input = input as bytes, mem = main memory, s = length(mem) */
 bool *filled;
 u32 *input, *mem, s;

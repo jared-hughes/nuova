@@ -101,6 +101,7 @@ u32 padding_char(u32 idx) {
 
 void ms_simple(u32 idx, u32 v) {
   printf("ms_simple(0x%08X, 0x%08X)\n", idx, v);
+  msSimpleCount++;
   ms_simple_inner(idx, v);
 }
 
@@ -144,6 +145,9 @@ void emit_from_mem() {
   }
   fclose(out);
   printf("Bytes: %d\n", bytes);
+  printf("initMemset count: %d\n", initMemsetCount);
+  printf("initMemsetZero count: %d\n", initMemsetZeroCount);
+  printf("msSimple count: %d\n", msSimpleCount);
 }
 
 void printData(TsfavCacheData data) {
@@ -472,6 +476,7 @@ u32 zero_a(u32 pos) {
  */
 void initMemsetZero(u32 setIdx) {
   printf("initMemsetZero(0x%08X)\n", setIdx);
+  initMemsetZeroCount++;
   // .zero_a // zero_a from i to i+4
   // c = a  // at i+6
   // b = B ^ P() // b = b1 = B ^ P(i+9)
@@ -516,6 +521,7 @@ void initMemsetZero(u32 setIdx) {
 void initMemset(u32 setIdx, u32 setValue) {
   if (setValue == 0)
     return initMemsetZero(setIdx);
+  initMemsetCount++;
   printf("initMemset(0x%08X, 0x%08X)\n", setIdx, setValue);
   // End goal:
   // at idx1: a = inverseP^{i - idx1 + 2 + stepsFrom(b1, setValue)}(setIdx)
