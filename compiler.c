@@ -100,7 +100,7 @@ u32 padding_char(u32 idx) {
 }
 
 void ms_simple(u32 idx, u32 v) {
-  printf("ms_simple(0x%08X, 0x%08X)\n", idx, v);
+  verbose_printf("ms_simple(0x%08X, 0x%08X)\n", idx, v);
   msSimpleCount++;
   ms_simple_inner(idx, v);
 }
@@ -475,7 +475,7 @@ u32 zero_a(u32 pos) {
  * ms(setIdx, 0);
  */
 void initMemsetZero(u32 setIdx) {
-  printf("initMemsetZero(0x%08X)\n", setIdx);
+  verbose_printf("initMemsetZero(0x%08X)\n", setIdx);
   initMemsetZeroCount++;
   // .zero_a // zero_a from i to i+4
   // c = a  // at i+6
@@ -522,7 +522,7 @@ void initMemset(u32 setIdx, u32 setValue) {
   if (setValue == 0)
     return initMemsetZero(setIdx);
   initMemsetCount++;
-  printf("initMemset(0x%08X, 0x%08X)\n", setIdx, setValue);
+  verbose_printf("initMemset(0x%08X, 0x%08X)\n", setIdx, setValue);
   // End goal:
   // at idx1: a = inverseP^{i - idx1 + 2 + stepsFrom(b1, setValue)}(setIdx)
   // at i-1: a = inverseP^{2 + stepsFrom(b1, setValue)}(setIdx)
@@ -793,7 +793,6 @@ void _load_from_file(char *filename, bool is_label_pass) {
       ENSURE_NEXT_POS;
       if (!can_ms_simple(next_pos, 0x60))
         ++next_pos;
-      printf("zero_a(%08X)\n", next_pos);
       last_pos = zero_a(next_pos);
       next_pos = NO_NEXT_POS;
     } else if (starts_with(line, ".putchar")) {

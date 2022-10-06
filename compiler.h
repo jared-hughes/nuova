@@ -6,6 +6,14 @@
 
 typedef uint32_t u32;
 
+#define VERBOSE
+
+#ifdef VERBOSE
+#define verbose_printf(...) printf(__VA_ARGS__)
+#else
+#define verbose_printf(...) ;
+#endif
+
 #define LEN(X) (sizeof((X)) / sizeof(*(X)))
 
 #define log(...) fprintf(stderr, __VA_ARGS__)

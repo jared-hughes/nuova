@@ -56,7 +56,9 @@ glue(inc_,di): addr;
   a = b + c;
   c = a;
   MS_c(&glue(di,_a));
-  MS_c(&glue(di,_b));
+  MS_c(&glue(di,_b))
+
+#define SET_FILLED(di) \
   b =;
     .trash;
   MS_b(&glue(di,_filled));
@@ -79,14 +81,17 @@ CHECK_9 // if (d0 <= 9) jmp inc x3
 CLEAR_D(d0) // fallthrough; d0 = 0
 
 INC_D(d1, 0x60200) // ++d1
+SET_FILLED(d1)
 CHECK_9 // if (d1 <= 9) jmp inc x3
 CLEAR_D(d1) // fallthrough; d1 = 0
 
 INC_D(d2, 0x60300) // ++d2
+SET_FILLED(d2)
 CHECK_9 // if (d2 <= 9) jmp inc x3
 CLEAR_D(d2) // fallthrough; d2 = 0
 
 INC_D(d3, 0x60400) // if (++d3 <= 9) jmp inc x3
+SET_FILLED(d3)
 
 // if (++x3 <= 2) jmp inc_x5; else { print "Fizz"; x3=0; do_decimal=0; }
 inc_x3: 0x60600
@@ -154,7 +159,7 @@ check_decimal: 0x60800
 
 // print(d3 d2 d1 d0) without leading 0s
 
-#define PRINT_D(di, no_print_label, addr) \
+#define PRINT_D(di, no_print_label, addr, init_filled) \
 .trash;
 glue(print_,di): addr;
   .zero_a;
@@ -164,7 +169,7 @@ glue(print_,di): addr;
 glue(read_filled,di): addr + 9;
   a =;
   glue(di,_filled): addr + 10;
-    .val 0x0;
+    init_filled;
   .trash;
   if (a <= b) ip =;
     .val &no_print_label;
@@ -174,10 +179,10 @@ glue(read_filled,di): addr + 9;
     .val '0';
   putchar(a)
 
-PRINT_D(d3, print_d2, 0x60B00)
-PRINT_D(d2, print_d1, 0x60C00)
-PRINT_D(d1, print_d0, 0x60D00)
-PRINT_D(d0, endline, 0x60E00)
+PRINT_D(d3, print_d2, 0x60B00, .val 0x0)
+PRINT_D(d2, print_d1, 0x60C00, .val 0x0)
+PRINT_D(d1, print_d0, 0x60D00, .val 0x0)
+PRINT_D(d0, endline, 0x60E00, .trash)
   
 
 // print "\n"; do_decimal = .trash; jmp dec_num_lines
