@@ -305,6 +305,10 @@ void force_a_value_inner(u32 idx, u32 value) {
   }
   log("cache miss 0x%08X 0x%08X\n", idx, value);
   for (;; idx--) {
+    if (filled[idx]) {
+      printf("No valid position in force_a at idx %08X\n", idx);
+      finish(2);
+    }
     log("Trying idx 0x%08X\n", idx);
     TsfavCacheData res =
         try_set_force_a_value(searchIdx, idx - 21, searchValue, value);
