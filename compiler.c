@@ -12,14 +12,11 @@ u32 P(u32 x) {
 }
 
 u32 inverseP(u32 x) {
-  x ^= x >> 28 << 14;
-  x ^= x << 4 >> 18;
+  x ^= x >> 14 ^ x >> 28;
   x *= 0x32b21703U;
-  x ^= x >> 30 << 15;
-  x ^= x << 2 >> 17;
+  x ^= x >> 15 ^ x >> 30;
   x *= 0x469e0db1U;
-  x ^= x >> 22 << 11;
-  x ^= x << 10 >> 21;
+  x ^= x >> 11 ^ x >> 22;
   x *= 0x79a85073U;
   x ^= x >> 17;
   return x;
@@ -774,8 +771,10 @@ void _load_from_file(char *filename, bool is_label_pass) {
     advance_past_spaces(&line);
     // printf("Line: %s\n", line);
     if (*line == '\0' || *line == ';' || *line == '@' ||
-        starts_with(line, "//")) {
+        starts_with(line, "//") || starts_with(line, "# ")) {
       // comment or empty line, do nothing
+    } else if (*line == '#') {
+      SADGE("Expected all macros to be removed (e.g. #DEFINE)")
     } else if (is_label(line)) {
       char *colon = strchr(line, ':');
       *colon = '\0';
