@@ -3,7 +3,6 @@ p: 0x1500
   a = getchar()
   putchar(a)
 
-  .trash
-  .forceA `&p
+  .zero_a
   .trash
   ip = a

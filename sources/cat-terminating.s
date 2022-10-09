@@ -1,7 +1,5 @@
 // cat terminating
 p: 0x4A00
-  b =
-    .trash
   a = getchar()
   if (a <= b) ip =
     .val &not_eof
@@ -10,8 +8,9 @@ p: 0x4A00
   exit(0)
 
 .trash
-not_eof: 0x4A08
+not_eof: &p + 8
   putchar(a)
 
-  .forceA &p
+  .forceA `&p
+  .trash
   ip = a

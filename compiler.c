@@ -73,9 +73,8 @@ void ms_simple_inner(u32 idx, u32 v) {
     } else {
       filled[idx - 1] = 1;
       u32 p = P(idx - 1);
-      if (p >> 8 == 0)
+      if (p >> 8 == 0 && idx > 1)
         SADGE("Collision possible")
-      filled[idx - 1] = 1;
       mem[idx - 1] = p ^ 0x0F;
       input[idx - 1] = 0xFF;
     }
@@ -83,6 +82,11 @@ void ms_simple_inner(u32 idx, u32 v) {
   filled[idx] = 1;
   mem[idx] = v;
   input[idx] = xor;
+}
+
+bool get_filled(u32 idx) {
+  gw(idx);
+  return filled[idx];
 }
 
 u32 padding_char(u32 idx) {
@@ -103,8 +107,10 @@ void ms_simple(u32 idx, u32 v) {
 }
 
 u32 can_ms_simple(u32 idx, u32 v) {
-  gw(idx);
-  return !filled[idx - 1] || (v ^ P(idx)) >> 8 == 0;
+  if (idx == 0)
+    return 1;
+  return !get_filled(idx - 1) || (v ^ P(idx)) >> 8 == 0 ||
+         ((input[idx - 1] >> 8 == 0) && (input[idx - 1] & 0xF == 0xF));
 }
 
 /**
@@ -125,7 +131,7 @@ void emit_from_mem() {
   u32 prev_f = 0;
   u32 bytes = 0;
   for (u32 i = 0; i < s; i++) {
-    u32 x = filled[i] ? input[i] : padding_char(i);
+    u32 x = get_filled(i) ? input[i] : padding_char(i);
     if (prev_f) {
       prev_f = 0;
       fputc(x >> 24, out);
@@ -214,7 +220,7 @@ void build_cache() {
 
 bool rangeIsOpen(u32 start, u32 end) {
   for (u32 i = start; i <= end; i++) {
-    if (filled[i])
+    if (get_filled(i))
       return false;
   }
   return true;
@@ -302,7 +308,7 @@ void force_a_value_inner(u32 idx, u32 value) {
   }
   log("cache miss 0x%08X 0x%08X\n", idx, value);
   for (;; idx--) {
-    if (filled[idx]) {
+    if (get_filled(idx)) {
       printf("No valid position in force_a at idx %08X\n", idx);
       finish(2);
     }
@@ -328,8 +334,7 @@ void force_a_value(u32 idx, u32 value) {
  */
 u32 force_putchar(u32 idx, u32 value) {
   for (;; idx++) {
-    gw(idx);
-    if (filled[idx])
+    if (get_filled(idx))
       SADGE("oopsie: putchar overlap with filled")
     if (!can_ms_simple(idx + 1, 0x0F)) {
       continue;
