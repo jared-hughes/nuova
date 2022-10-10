@@ -850,7 +850,7 @@ void load_from_file(char *s) {
 int main(int argc, char *argv[]) {
   if (argc != 2)
     SADGE("Expect exactly one argument (input program), e.g"
-          " ./test sources/hello_world.s")
+          " ./test sources/hello-world.s")
   build_cache();
   prep_labels();
   load_from_file(argv[1]);
