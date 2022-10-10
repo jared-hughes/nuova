@@ -334,19 +334,17 @@ void force_a_value(u32 idx, u32 value) {
  */
 u32 force_putchar(u32 idx, u32 value) {
   for (;; idx++) {
-    if (get_filled(idx))
-      SADGE("oopsie: putchar overlap with filled")
-    if (!can_ms_simple(idx + 1, 0x0F)) {
+    if (!can_ms_simple(idx, 0x0F)) {
       continue;
     }
     for (u32 X = 0; X <= 0xFF; X++) {
-      if ((X & 15) == 15)
+      if (idx > 0 && (X & 15) == 15)
         continue;
-      if ((P(X ^ P(idx + 2)) & 0xFF) == (value & 0xFF)) {
-        ms_simple_inner(idx + 1, 0x0F);           // PPP; a =
-        ms_simple_inner(idx + 2, X ^ P(idx + 2)); // X ^ P(idx + 2)
-        ms_simple_inner(idx + 4, 0xD0);           // PPP; putchar(a)
-        return idx + 4;
+      if ((P(X ^ P(idx + 1)) & 0xFF) == (value & 0xFF)) {
+        ms_simple_inner(idx, 0x0F);               // PPP; a =
+        ms_simple_inner(idx + 1, X ^ P(idx + 1)); // X ^ P(idx + 1)
+        ms_simple_inner(idx + 3, 0xD0);           // PPP; putchar(a)
+        return idx + 3;
       }
     }
   }
@@ -779,7 +777,7 @@ void _load_from_file(char *filename, bool is_label_pass) {
         starts_with(line, "//") || starts_with(line, "# ")) {
       // comment or empty line, do nothing
     } else if (*line == '#') {
-      SADGE("Expected all macros to be removed (e.g. #DEFINE)")
+      SADGE("Expected all macros to be removed (e.g. #define)")
     } else if (is_label(line)) {
       char *colon = strchr(line, ':');
       *colon = '\0';

@@ -22,7 +22,7 @@ Nuova is a relatively simple language. Each instruction is executed one-by-one i
 - `raw-nuova.c`: the definitive Nuova interpreter. Run with `bin/prog` as the input via `make run-raw-nuova`
 - `nuova.c`: a formatted version with debugging statements (prints to `logs/nuova.log`), memory limit, and runtime limit. Run with `bin/prog` as the input via `make run-nuova`
 - `sources/*.s`: my solutions to the tasks, in an assembly-like format
-- `compiler.c`, `compiler.h`: my primary compiler for generating Nuova code. Generate `bin/cat-terminating` (Nuova bytecode) using `make run-compiler prog=cat-terminating`.
+- `compiler.c`, `compiler.h`: my primary compiler for generating Nuova code. Generate `bin/prog` (Nuova bytecode) for a particular program using `make run-compiler prog=cat-terminating`.
 - `solver.py`: my first attempt, using Z3 (Z3 is no faster than exhaustive search since the hash has no useful patterns)
 
 ## Hash details

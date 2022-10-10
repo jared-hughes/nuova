@@ -1,3 +1,4 @@
+start: 0
   .putchar 'H'
   .putchar 'e'
   .putchar 'l'
