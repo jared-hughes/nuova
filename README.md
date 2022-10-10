@@ -4,7 +4,7 @@ My solutions to the second esolang reverse engineering contest (Nuova).
 
 ## Introduction
 
-The event was based on the language Nuova, defined by its implementation (in this repository as raw-nuova.c). The tasks were as follows:
+The event was based on the language Nuova, defined by its implementation (in this repository as `raw-nuova.c`). The tasks were as follows:
 
 1. Create a program that prints "Hi" without a linefeed.
 2. Create a program that prints "Hello, World!" with a linefeed.
@@ -19,21 +19,22 @@ Nuova is a relatively simple language. Each instruction is executed one-by-one i
 
 ## This Repository
 
-- `raw-nuova.c`: the definitive Nuova interpreter. Run with `bin/prog` as the input via `make run-raw-nuova`
-- `nuova.c`: a formatted version with debugging statements (prints to `logs/nuova.log`), memory limit, and runtime limit. Run with `bin/prog` as the input via `make run-nuova`
-- `sources/*.s`: my solutions to the tasks, in an assembly-like format
-- `compiler.c`, `compiler.h`: my primary compiler for generating Nuova code. Generate `bin/prog` (Nuova bytecode) for a particular program using `make run-compiler prog=cat-terminating`.
-- `solver.py`: my first attempt, using Z3 (Z3 is no faster than exhaustive search since the hash has no useful patterns)
+- `raw-nuova.c`: the definitive Nuova interpreter. Run with `bin/prog` as the input via `make run-raw-nuova`, or `./bin/nuova fizzbuzz` to run a different file as input.
+- `nuova.c`: a formatted version with debugging statements (prints to `logs/nuova.log`), memory limit, and runtime limit. Run with `bin/prog` as the input via `make run-nuova`.
+- `sources/*.s`: my solutions to the tasks, in an assembly-like format.
+- `compiler.c`, `compiler.h`: my primary compiler for generating Nuova code. Generate Nuova bytecode at `bin/prog` for a particular program using `make run-compiler prog=cat-terminating`.
+- `solver.py`: my first attempt, using Z3 (though Z3 is no faster than exhaustive search since the hash has no useful patterns)
+- See the releases page for binaries of programs for all six tasks.
 
 ## Hash details
 
 The hash itself is a three-round multiply-xorshift hash, named `triple32` from [Hash Prospector](https://github.com/skeeto/hash-prospector), which notes "this hash function is indistinguishable from a perfect PRF (e.g. a random permutation of all 32-bit integers)." Nuova names this function `P`. Fortunately, since `P` is collisionless, it is invertible. Also `P(0) = 0`, which has some niche use.
 
-## Instructions
+## Execution
 
-Program and data is stored on the same "unbounded" (bounded by 32 bit integer addressing) tape of unsigned 32-bit integers (call it `mem`). In each step, the memory at the instruction pointer (initially 0) is read like `instruction = mem[ip]`, and the instruction pointer is incremented. If that instruction is one of the 23 valid instructions, then the corresponding statement occurs (described below) and the next step begins. Otherwise, all three of the registers (`a`, `b`, and `c`) get hashed with `P`), and the next step begins.
+Program and data is stored on the same "unbounded" (bounded by 32 bit integer addressing) tape of unsigned 32-bit integers (call it `mem`). In each step, the memory at the instruction pointer (initially 0) is read like `instruction = mem[ip]`, and the instruction pointer is incremented. If that instruction is one of the 23 valid instructions, then the corresponding statement occurs (described below) and the next step begins. Otherwise, all three of the registers (`a`, `b`, and `c`) get hashed through `P`, and the next step begins.
 
-Three instructions are load-immediate
+Three instructions are load-immediate:
 
 ```c
 0x0F: a = mem[ip++];
@@ -49,7 +50,7 @@ Three instructions are jump-immediate. `0x3F` is unconditional. `0x4F` and `0x5F
 0x5F: if (b >= c) ip = mem[ip++];
 ```
 
-Three instructions are memset immediate. After setting the memory (in the cell immediately after the instruction), they increment the instruction pointer again
+Three instructions are memset-immediate. After setting the memory (in the cell immediately after the instruction), they increment the instruction pointer again
 
 ```c
 0x00: mem[ip] = a; ip++;
@@ -62,7 +63,7 @@ Three instructions are random-access memset:
 ```c
 0x30: mem[a] = b;
 0x40: mem[a] = c;
-0x50: mem[a] = mem[a]; // ??
+0x50: mem[a] = mem[a]; // why?
 ```
 
 Four instructions move registers through `a`:
@@ -74,7 +75,7 @@ Four instructions move registers through `a`:
 0x90: a = c;
 ```
 
-One instruction is an unconditional jump to register
+One instruction is an unconditional jump to register:
 
 ```c
 0xA0: ip = a;
@@ -87,14 +88,14 @@ Two instructions do arithmetic using `b` and `c` as arguments, with `a` as the r
 0xC0: a = b - c;
 ```
 
-Two instructions do I/O on individual characters. Note `putchar` only cares about the lower 8 bits, and `getchar` returns `-1 = 0xFFFFFFFF` for EOF.
+Two instructions do I/O on individual characters (bytes, C locale). Note `putchar` only cares about the lower 8 bits of `a`, and `getchar` returns `-1 = 0xFFFFFFFF` for EOF.
 
 ```c
 0xD0: putchar(a);
 0xE0: a = getchar();
 ```
 
-There is one instruction to exit cleanly, like `exit(0);` in C, or `return 0;` in the main function in C.
+There is one instruction to exit cleanly, like `exit(0);` in C, or `return 0;` in the main function in C:
 
 ```c
 0xF0: exit(0);
@@ -102,9 +103,9 @@ There is one instruction to exit cleanly, like `exit(0);` in C, or `return 0;` i
 
 We don't talk about `0x6F`.
 
-Any other memory value (whenever you have garbage data) gets treated as `a = P(a); b = P(a); c = P(c);`
+Any other memory value executes `a = P(a); b = P(a); c = P(c);`.
 
-Note there is no instruction for reading from an arbitrary memory address.
+There is no instruction for reading from an arbitrary memory address.
 
 ## Startup memory
 
@@ -118,10 +119,10 @@ We don't talk about the last cell that gets set.
 
 ## Example (`a = 42`)
 
-Suppose the input file is the sequence of bytes `0F 04 27 41 fc`.
+Suppose the input file is the sequence of five bytes `0F 04 27 41 FC`.
 
-1. Nuova starts by setting `mem[0] = P(0) ^ 0x0F`. Fortunately, `P(0) = 0`, so `mem[0] = 0x0F = 15`.
-2. Since the byte `0x0F` has bottom nibble set, Nuova reads the next four bytes to set `mem[1] = P(1) ^ 0x042741fc`. I chose that value carefully, since `P(1) = 0x42741d6`, so `mem[1] = 0x042741fc ^ 0x42741d6 = 0x2a = 42`.
+1. Nuova starts by setting `mem[0] = P(0) ^ 0x0F`. Fortunately, `P(0) = 0`, so `mem[0] = 0x0F`.
+2. Since the byte `0x0F` has bottom nibble set, Nuova reads the next four bytes to set `mem[1] = P(1) ^ 0x042741fc`. I chose that value carefully since `P(1) = 0x42741d6`, so `mem[1] = 0x042741fc ^ 0x42741d6 = 0x2a = 42`.
 
 The end result of all this is that `mem[0] = 0x0F` and `mem[1] = 42`. So Nuova executes as follows:
 
@@ -133,7 +134,7 @@ The end result of all this is that `mem[0] = 0x0F` and `mem[1] = 42`. So Nuova e
 
 A consequence of Nuova's input is that the programmer has no control over a cell of the startup memory unless the previous cell is initialized with a byte whose lowest nibble is `0xF`. Hence the bytecode input really only has control over every second cell, so hashing is inevitable.
 
-So to write a program whose effect is `putchar('h')`, we dont start with `a = 104 = 0x68 = 'h'` like in the previous section. We start with `a = 0xb7cd2d00` because we expect it to get hashed once.
+So to write a program whose effect is `putchar('h')`, we dont start by setting `a = 104 = 0x68 = 'h'` like in the previous section. We start by setting `a = 0xb7cd2d00` because we expect it to get hashed once.
 
 Hence a full terminating program to print `h` looks like
 
@@ -214,7 +215,7 @@ Then execution wraps up with the same `exit(0)` approach as the previous example
 
 ## Task 2 (`printf("Hello, World!\n");`)
 
-The `"Hello, World\n"` task is pretty similar to `"hi"` except there's more characters to print. For all the letters after `H`, use the same 11-byte, 5-cell pattern:
+The `"Hello, World\n"` task is pretty similar to `"hi"` except there's more characters to print. For each byte to output, use the same 11-byte, 5-cell pattern:
 
 1. (cell `i`) Trash input byte `0xFF` to control the next cell
 2. (cell `i+1`) Four bytes to force `0x0F` (`a = mem[ip++]`) in the memory
@@ -223,8 +224,6 @@ The `"Hello, World\n"` task is pretty similar to `"hi"` except there's more char
 5. (cell `i+4`) Four bytes to fource `0xD0` (`putchar(a)`) in the memory
 
 Note this isn't possible for all starting indices `i`: there are only `256 - 16 = 240` options for `c` in step 3, and there are some collisions, so you might have to increment `i` until a working `c` is possible to choose.
-
-[[TODO put full binary of Hello World here]]
 
 ## The compiler
 
@@ -289,7 +288,7 @@ The next non-comment line is `a =`, which is a mnemonic for the `0x0F` instructi
 - 0xF0: `exit(0)`
 </details>
 
-Next is `.val 0xB7CD2D00` which is a literal value.
+Next is the literal value `.val 0xB7CD2D00`, which determines the memory in the initial tape. The assembler will pick the right sequence of four bytes in the input file to obtain that value.
 
 After that is `.trash`, which specifies a literal `0xFF` byte in the input bytecode. This allows the next cell to be forced exactly using four bytes.
 
@@ -305,7 +304,7 @@ FF 082C8EEA
 
 We got lucky in "hi" and "hello world" because you don't need much control on a putchar value. But for all the harder tasks, we're going to need some way to have full control over all 4 bytes of a register.
 
-One way we accomplish this is by combining registers we have low control over to get a register with high control. For example, if we can vary one byte in the input file to get 240 choices for `b`, and vary another byte to get 240 choices for `c`, then running `a = b + c` would give about `240 * 240 = 57600` choices for `a` (slightly less due to collisions). This is slightly less than 2 bytes of control. To get close to a full 4 bytes of control, we run `b = a`, vary a byte to get 240 choices for `c`, then again run `a = b + c` to get a little less than 3 bytes of control. Repeating one more time gives almost 4 bytes of control, which allows for a successful exchaustive search for most start indices.
+One way we accomplish this is by combining registers we have low control over to get a register with high control. For example, if we can vary one byte in the input file to get 240 choices for `b`, and vary another byte to get 240 choices for `c`, then running `a = b + c` would give about `240 * 240 = 57600` choices for `a` (slightly fewer due to collisions). This is slightly less than 2 bytes of control. To get close to a full 4 bytes of control, we run `b = a`, vary a byte to get 240 choices for `c`, then again run `a = b + c` to get a little less than 3 bytes of control. Repeating one more time gives almost 4 bytes of control, which allows for a successful exchaustive search for most start indices.
 
 In the assembly language, this would be written approximately
 
@@ -344,7 +343,7 @@ This exhaustive search ends up covering about 3/4 of the possible 32-bit output 
 
 ## Example: infinite loop
 
-To get an infinite loop, we need to set the `ip` back to an earlier position. We can uselessly get an empty infinite loop via
+To get an infinite loop, we need to set the `ip` back to an earlier position. We can get an empty (useless) infinite loop via
 
 ```c
 start: 0
@@ -366,7 +365,7 @@ loop_end: 0x50
 
 Here, the `` ` `` denotes `inverseP`, so `` `0x10 `` is the same as the value `0x1CDB46F2` since `P(0x1CDB46F2) == 0x10`. The first `.trash` is just to deal with an assembler bug, and the second `.trash` allows for four bytes to force the value of `ip = a`.
 
-When the program execution finishes the instructions generated by the `.forceA` directive, we have `a = 0x1CDB46F2`. The `.trash` instruction then hashes the registers to get `a = 0x10`. Then `ip = a` unconditionally jumps back to `loop_start`.
+When the program execution finishes running the instructions generated by the `.forceA` directive, we have `a = 0x1CDB46F2`. The `.trash` instruction then hashes the registers to get `a = P(0x1CDB46F2) = 0x10`. Then `ip = a` unconditionally jumps back to `loop_start`.
 
 To familiarize you with another assembler syntax, `&label` refers to the cell index of `label`. Also, values support addition (at most one) or subtraction (at most one), so the above loop can be written as
 
@@ -415,7 +414,7 @@ Instead, we take advantage of the hashing capabilities. We just want to use `ms(
     .val ?? // 240 choices here
   .trash
   .trash
-  // however many hashes are needed (up to 16 million ish)
+  // however many hashes are needed (need up to 16 million ish)
   .trash
   .trash
   ms(a, b)
@@ -426,7 +425,7 @@ Since we have about 8 bits of control over the initial value of `b`, the "howeve
 ````````````c
   .trash
   .trash
-  // however much padding is needed (up to 4000 ish)
+  // however much padding is needed (only need about 4000 ish)
   .trash
   .trash
   // whatever number of inverses is needed
@@ -436,7 +435,7 @@ Since we have about 8 bits of control over the initial value of `b`, the "howeve
     .val ?? // 240 choices here
   .trash
   .trash
-  // however many hashes are needed (up to 4000 ish)
+  // however many hashes are needed (only need about 4000 ish)
   .trash
   .trash
   ms(a, b)
@@ -444,9 +443,9 @@ Since we have about 8 bits of control over the initial value of `b`, the "howeve
 
 Now, exhaustive search through about 4000 starting positions, 240 initial `b` values, and 4000 hash counts gives about 2^32 options, which is enough to control `b` at the point of `ms(a, b)`.
 
-(This is slow implemented naively, so the assembler accelerates it by using a hash set to store a bunch of inverses of the goal `b` value).
+(This is slow if implemented naively, so the assembler accelerates it by using a hash set to store a bunch of inverses of the goal `b` value).
 
-This is represented in assembly by putting two mnemonics next to each other without `.trash` in between. So getchar-putchar is represented by
+This whole 4000-240-4000 approach is represented in assembly by putting two mnemonics next to each other without `.trash` in between. So getchar-putchar is represented by
 
 ```c
   a = getchar()
@@ -471,7 +470,7 @@ p: 0x1500
   ip = a
 ```
 
-The assembler puts the `initMemset` block somewhere before `0x1500`, which gives about 5000 total cells of freedom. This works out even though it's less than 4000+240+4000.
+The assembler puts the `initMemset` block somewhere before `0x1500`, which gives about 5000 total cells of freedom. This works out by luck even though it's less than 4000+240+4000.
 
 The program ends with the same infinite loop as [the infinite loop example](#example-infinite-loop).
 
@@ -489,7 +488,7 @@ To save 47 bytes, the loop at the end can be swapped out for `ip = 0` using
   ip = a
 ```
 
-This is much shorter than a general `.forceA`. It relies on `P(0) = 0`. The assembler also defines a directive to zero `a` which corresponds to exactly the above code:
+This is much shorter than a general `.forceA` by subtracting two equal registers to get 0, and it relies on `P(0) = 0`. The assembler defines a directive to zero `a` which corresponds to exactly the above code:
 
 ```c
   .zero_a
@@ -523,9 +522,9 @@ Since EOF is the maximum 32-bit integer `0xFFFFFFFF`, pretty much all integers c
 
 ## Example: global variables
 
-Nuova does not have a random-access memory get instruction, so memory must be read where it is used.
+Nuova does not have a random-access memory get instruction, so memory must be stored where it is read.
 
-For a demonstration, let's reproduce the following program that prints out all the ascii characters in a cycle without terminating, starting at `!` and cycling due to overflow.
+For a demonstration, let's reproduce the following program that prints out all the the bytes in a cycle without terminating, starting at `!` and cycling due to overflow.
 
 ```c
 start: 0x10000
@@ -573,11 +572,11 @@ loop_begin: 0x10000
   ip = a
 ```
 
-This means that the value of `x` can only be read at the beginning of the loop. If you need to read it in two locations, the program has to also write the value to those two locations, see [Method 1 with several reads](#method-1-with-several-reads).
+This means that the value of `x` can only be read at the beginning of the loop. If you need to read it in two locations, the program has to also write the value to those two locations, as demonstrated in the next section.
 
 ### Method 1 with several reads
 
-The fizzbuzz program linked here at `fizzbuzz.s` uses the method of writing the value to those multiple locations. For example, fizzbuzz needs to read the ones digit `d0` in two places: once for incrementing the counter, and once for printing out the counter. So it stores two copies of the value at different addresses `d0_a` and `d0_b`.
+The fizzbuzz program included in this repository as `fizzbuzz.s` uses the method of writing the value to those multiple locations. For example, fizzbuzz needs to read `d0` (the ones digit) in two places: once for incrementing the counter, and once for printing out the counter. So it stores two copies of the value at different addresses `d0_a` and `d0_b`.
 
 When `d0`, it reads from `d0_a` and writes to `d0_a` and `d0_b`:
 
@@ -750,9 +749,11 @@ got_x: 0xF0010
 
 ## Task 5: Fizz Buzz
 
-Since Fizz Buzz only needs to go up to four digits numbers (10000 is buzz), it's reasonable to just store the digits in four separate memory locations instead of an aray.
+Usage: `echo -n '123' | ./nuova fizzbuzz`.
 
-High level C-like psuedocode with GOTOs: (the full assembly is in sources/fizzbuzz.s)
+Since Fizz Buzz only needs to go up to four-digit numbers (10000 is buzz), it's reasonable to just store the digits in four separate memory locations instead of an aray.
+
+High-level C-like psuedocode with GOTOs: (the full assembly is in sources/fizzbuzz.s)
 
 ```c
 u32 a, b, c;
@@ -833,7 +834,7 @@ cplus:
 
 ## Task 6: Turing Completeness
 
-I decided to implement cyclic tag (for some reason I thought BCT was harder to implement, oopsie).
+I decided to implement [cyclic tag](https://esolangs.org/wiki/Cyclic_tag_system).
 
 Usage examples:
 
