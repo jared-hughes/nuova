@@ -830,3 +830,74 @@ cplus:
   num_lines = c
   goto getc;
 ```
+
+## Task 6: Turing Completeness
+
+I decided to implement cyclic tag (for some reason I thought BCT was harder to implement, oopsie).
+
+Usage examples:
+
+- `echo -n '"011"10"101;1;' | ./nuova cyclic-tag` for the cyclic tag system (011, 10, 101) and initial string 1
+- `echo -n '"010001"100"100100100""";100100100100;' | ./nuova cyclic-tag` for the cyclic tag system (010001, 100, 100100100, ε, ε, ε) and initial string 100100100100
+
+First, it parses the input into a bunch of 2-word jmp instruction pairs `ip = immediate` similar to what follows
+
+```c
+// 3 production rules
+ip = pdone // < curr
+ip = p0
+ip = p1
+ip = p1
+ip = pdone
+ip = p1
+ip = p0
+ip = pdone
+ip = p1
+ip = p0
+ip = p1
+ip = preturn
+// data section
+ip = d1 // < head
+        // < tail
+```
+
+Each instruction pair is at two consecutive addresses in memory.
+
+It works by extending the data section from `tail` (with tail always pointing after the last datum) whenever a global variable `do_append` is set to 1. Then when a `pdone` is hit (done with that production string), it jumps back to `head`, prints that value (and increments head by 2), sets `do_append`, and jumps back to the production strings.
+
+The first byte of the first jmp (`ip = pdone`) is at address `start` (0x100000), and the global variable `curr` is initialized with the value 0x100000. The global variable `head` is initialized with the value of 0x100018 (the position of the first data string jmp), and `tail` is initialized to point immediately after it at 0x10001A. The global `do_append` is initialized to 0.
+
+Execution begins at the start of the first rule, and proceeds by the following pseudocode:
+
+```c
+pdone:
+  jmp head
+p0:
+  if do_append {
+    *tail = (2 instructions)"ip = d0"
+    tail += 2
+  }
+  curr += 2
+  jmp curr
+p1:
+  if do_append {
+    *tail = (2 instructions)"ip = d1"
+    tail += 2
+  }
+  curr += 2
+  jmp curr
+preturn:
+  jmp start
+d0:
+  putchar('0')
+  do_append = 0
+  head += 2
+  curr += 2
+  jmp curr
+d1:
+  putchar('1')
+  do_append = 1
+  head += 2
+  curr += 2
+  jmp curr
+```
