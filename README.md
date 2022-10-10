@@ -627,7 +627,7 @@ When zeroing `d0`, it writes to `d0_a` and `d0_b`:
 
 ### Macros for Method 1
 
-For Method 1, it helps to define a macro to simplify the memory operations. The `make run-compiler` uses `gcc -E` to expand macros. Unfortunately, it replaces newlines with spaces, so as a hack, write `;` instead of `\` when you want the macro to continue onto several lines (`make run-compiler` replaces `;` with `;\`, then runs `gcc -E`, then replaces `;` with newlines again).
+For Method 1, it helps to define a macro to simplify the memory operations. The `make run-compiler` uses the gcc preprocessor (`gcc -E`) to expand macros. Unfortunately, it replaces newlines with spaces, so as a hack, write `;` instead of `\` when you want the macro to continue onto several lines (`make run-compiler` replaces `;` with `;\`, then runs `gcc -E`, then replaces `;` with newlines again).
 
 ```c
 #define MS_b(addr) \
@@ -751,3 +751,82 @@ got_x: 0xF0010
 ## Task 5: Fizz Buzz
 
 Since Fizz Buzz only needs to go up to four digits numbers (10000 is buzz), it's reasonable to just store the digits in four separate memory locations instead of an aray.
+
+High level C-like psuedocode with GOTOs: (the full assembly is in sources/fizzbuzz.s)
+
+```c
+u32 a, b, c;
+u32 num_lines = 0;
+u32 d0 = 0, d1 = 0, d2 = 0, d3 = 0;
+bool filled_d1 = 0, filled_d2 = 0, filled_d3 = 0;
+u32 x3 = 0, x5 = 0;
+bool do_decimal = 0;
+
+// getc is fornumber reading
+getc:
+  a = getchar();
+  if (a != EOF) goto cplus;
+  // end of input number, so fallthrough and start main loop
+
+// BEGIN main loop
+dec_num_lines:
+  if (num_lines-- == 0) exit(0);
+
+// increment the four-digit number d = d3 d2 d1 d0
+inc_d0:
+  if (++d0 <= 9) goto inc_x3;
+  d0 = 0
+inc_d1:
+  filled_d1 = true;
+  if (++d1 <= 9) goto inc_x3;
+  d1 = 0
+inc_d2:
+  filled_d2 = true;
+  if (++d2 <= 9) goto inc_x3;
+  d2 = 0
+inc_d3:
+  filled_d3 = true;
+  ++d3;
+
+// increment multiple of 3 counter (x3)
+inc_x3:
+  if (++x3 <= 2) goto inc_x5
+  x3 = 0;
+  do_decimal = false;
+  printf("Fizz");
+
+// increment multiple of 5 counter (x5)
+inc_x5:
+  if (++x5 <= 4) goto check_decimal
+  printf("Buzz");
+  goto endline;
+
+// don't print the number if we printed Fizz
+check_decimal:
+  if (!do_decimal) goto endline
+
+// print d3 d2 d1 d0 without leading decimals
+print_d3:
+  if (!filled_d3) goto print_d2;
+  printf("%d", d3);
+print_d2:
+  if (!filled_d2) goto print_d1;
+  printf("%d", d2);
+print_d1:
+  if (!filled_d1) goto print_d0;
+  printf("%d", d1);
+print_d0:
+  printf("%d", d0);
+
+endline:
+  printf("\n");
+  goto dec_num_lines;
+// END main loop
+
+// cplus is part of number input
+cplus:
+  c = num_lines
+  c = 10 * c + (a - '0')
+  num_lines = c
+  goto getc;
+```

@@ -90,7 +90,7 @@ SET_FILLED(d2)
 CHECK_9 // if (d2 <= 9) jmp inc x3
 CLEAR_D(d2) // fallthrough; d2 = 0
 
-INC_D(d3, 0x60400) // if (++d3 <= 9) jmp inc x3
+INC_D(d3, 0x60400) // ++d3
 SET_FILLED(d3)
 
 // if (++x3 <= 2) jmp inc_x5; else { print "Fizz"; x3=0; do_decimal=0; }
