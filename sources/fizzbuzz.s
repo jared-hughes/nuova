@@ -74,7 +74,7 @@ glue(clear_,di):;
   b =;
     .val '0';
   MS_b(&glue(di,_a));
-  MS_b(&glue(di,_b));
+  MS_b(&glue(di,_b))
 
 INC_D(d0, 0x60100) // ++d0
 CHECK_9 // if (d0 <= 9) jmp inc x3
