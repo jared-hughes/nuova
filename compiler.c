@@ -345,6 +345,17 @@ u32 force_putchar(u32 idx, u32 value) {
         return idx + 3;
       }
     }
+    // allow an extra hash before putchar
+    for (u32 X = 0; X <= 0xFF; X++) {
+      if (idx > 0 && (X & 15) == 15)
+        continue;
+      if ((P(P(X ^ P(idx + 1))) & 0xFF) == (value & 0xFF)) {
+        ms_simple_inner(idx, 0x0F);               // PPP; a =
+        ms_simple_inner(idx + 1, X ^ P(idx + 1)); // X ^ P(idx + 1)
+        ms_simple_inner(idx + 4, 0xD0);           // PPP; PPP; putchar(a)
+        return idx + 4;
+      }
+    }
   }
 }
 
