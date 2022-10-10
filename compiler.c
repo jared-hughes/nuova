@@ -106,10 +106,8 @@ void ms_simple(u32 idx, u32 v) {
   ms_simple_inner(idx, v);
 }
 
-u32 can_ms_simple(u32 idx, u32 v) {
-  if (idx == 0)
-    return 1;
-  return !get_filled(idx - 1) || (v ^ P(idx)) >> 8 == 0 ||
+bool can_ms_simple(u32 idx, u32 v) {
+  return idx == 0 || !get_filled(idx - 1) || (v ^ P(idx)) >> 8 == 0 ||
          ((input[idx - 1] >> 8 == 0) && (input[idx - 1] & 0xF == 0xF));
 }
 
